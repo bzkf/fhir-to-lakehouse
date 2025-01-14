@@ -1,4 +1,4 @@
-pyspark==3.5.1
+pyspark==3.5.4
 pathling==7.0.1
 delta-spark==3.2.0
 typed-settings==24.6.0
