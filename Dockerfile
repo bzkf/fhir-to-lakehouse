@@ -8,9 +8,9 @@ RUN --mount=type=cache,target=/home/spark/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     python3 -m pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+RUN --mount=type=bind,source=fhir_to_lakehouse/fhir_to_lakehouse.py,target=fhir_to_lakehouse/fhir_to_lakehouse.py \
+    SPARK_INSTALL_PACKAGES_AND_EXIT=1 python3 fhir_to_lakehouse/fhir_to_lakehouse.py
 
-# TODO: could cache-mount /home/spark/.ivy2/jars
-RUN SPARK_INSTALL_PACKAGES_AND_EXIT=1 python3 fhir_to_lakehouse/fhir_to_lakehouse.py
+COPY --chown=185:185 . .
 
 ENTRYPOINT [ "python3", "fhir_to_lakehouse/fhir_to_lakehouse.py" ]
