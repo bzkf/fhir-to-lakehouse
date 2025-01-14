@@ -9,7 +9,6 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
-
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 
@@ -42,7 +41,8 @@ settings = ts.load(Settings, appname="fhir_to_lakehouse", env_prefix="")
 
 logger.info("Settings: {settings}", settings=settings)
 
-# other config can be set via $SPARK_HOME/conf/spark-defaults.conf, e.g. compression type.
+# other config can be set via $SPARK_HOME/conf/spark-defaults.conf,
+# e.g. compression type.
 spark = (
     SparkSession.builder.master(settings.spark.master)
     .appName("fhir_to_lakehouse")
