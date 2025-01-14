@@ -1,6 +1,6 @@
 pyspark==3.5.4
 pathling==7.0.1
-delta-spark==3.2.0
+delta-spark==3.3.0
 typed-settings==24.6.0
 typed-settings[attrs]==24.6.0
 loguru==0.7.3
