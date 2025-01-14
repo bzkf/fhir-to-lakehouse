@@ -9,6 +9,8 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
+HERE = os.path.abspath(os.path.dirname(__file__))
+
 
 @ts.settings
 class KafkaSettings:
@@ -21,25 +23,26 @@ class KafkaSettings:
 class SparkSettings:
     install_packages_and_exit: bool = False
     master: str = "local[*]"
+    s3_endpoint: str = "localhost:9000"
+    warehouse_dir: str = os.path.join(HERE, "warehouse")
+    checkpoint_dir: str = os.path.join(HERE, "checkpoints")  # "s3a://fhir/checkpoint"
 
 
 @ts.settings
 class Settings:
     kafka: KafkaSettings
     spark: SparkSettings
+    aws_access_key_id: str = "admin"
+    aws_secret_access_key: str = ts.secret(default="miniopass")
+    delta_database_dir: str = os.path.join(HERE, "lakehouse")  # "s3a://fhir/warehouse"
 
 
 settings = ts.load(Settings, appname="fhir_to_lakehouse", env_prefix="")
 
-HERE = os.path.abspath(os.path.dirname(__file__))
-DATA_DIR = os.path.join(HERE, "data")
-NDJSON_DIR = os.path.join(DATA_DIR, "resources")
-WAREHOUSE_DIR = os.path.join(HERE, "warehouse")
+logger.info("Settings: {settings}", settings=settings)
 
-# TODO: move both to s3
-CHECKPOINT_DIR = os.path.join(HERE, "checkpoints")
-DELTA_DIR = os.path.join(HERE, "delta")
-
+# other config can be set via $SPARK_HOME/conf/spark-defaults.conf,
+# e.g. compression type.
 spark = (
     SparkSession.builder.master(settings.spark.master)
     .appName("fhir_to_lakehouse")
@@ -50,6 +53,7 @@ spark = (
                 "au.csiro.pathling:library-runtime:7.0.1",
                 "io.delta:delta-spark_2.12:3.2.0",
                 "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.4",
+                "org.apache.hadoop:hadoop-aws:3.3.4",
             ]
         ),
     )
@@ -61,7 +65,22 @@ spark = (
         "spark.sql.catalog.spark_catalog",
         "org.apache.spark.sql.delta.catalog.DeltaCatalog",
     )
-    .config("spark.sql.warehouse.dir", WAREHOUSE_DIR)
+    .config("spark.sql.warehouse.dir", settings.spark.warehouse_dir)
+    .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    .config(
+        "spark.hadoop.fs.s3a.path.style.access",
+        "true",
+    )
+    .config(
+        "spark.hadoop.fs.s3a.endpoint",
+        "localhost:9000",
+    )
+    .config(
+        "spark.hadoop.fs.s3a.connection.ssl.enabled",
+        "false",
+    )
+    .config("fs.s3a.access.key", settings.aws_access_key_id)
+    .config("fs.s3a.secret.key", settings.aws_secret_access_key)
     .getOrCreate()
 )
 
@@ -86,8 +105,12 @@ df = (
 
 
 def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
-
-    logger.info("Processing batch {batch_id}", batch_id=batch_id)
+    # might not be super efficient to log the batch size
+    logger.info(
+        "Processing batch {batch_id} containing {batch_size} rows",
+        batch_id=batch_id,
+        batch_size=micro_batch_df.count(),
+    )
 
     schema = StructType(
         [
@@ -143,6 +166,7 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
 
         # TODO: make sure the latest version of the resource is kept, not just any.
         #       order by timestamp/offset ?
+        # also check if we need watermarks for dropDuplicates
         put_df = df_result.filter(
             f"resource_type = '{resource_type}' and request_method = 'PUT'"
         ).drop_duplicates(["request_url"])
@@ -156,7 +180,9 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
         delta_table = (
             DeltaTable.createIfNotExists(spark)
             .tableName(resource_type)
-            .location(os.path.join(DELTA_DIR, resource_type))
+            .location(
+                os.path.join(settings.delta_database_dir, f"{resource_type}.parquet")
+            )
             .addColumns(resource_df.schema)
             .execute()
         )
@@ -185,8 +211,8 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
 
 
 # Write the output of a streaming aggregation query into Delta table
-df.writeStream.option("checkpointLocation", CHECKPOINT_DIR).foreachBatch(
+df.writeStream.option("checkpointLocation", settings.spark.checkpoint_dir).foreachBatch(
     upsert_to_delta
-).trigger(processingTime="30 seconds").outputMode("update").start()
+).outputMode("update").start()
 
 spark.streams.awaitAnyTermination()
