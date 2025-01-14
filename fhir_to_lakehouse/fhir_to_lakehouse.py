@@ -1,12 +1,13 @@
 import os
 import sys
-from delta import DeltaTable
-from pyspark.sql import DataFrame, SparkSession, functions as F
-from pyspark.sql.types import ArrayType, StringType, StructType, StructField
-from loguru import logger
-from pathling import PathlingContext
 
 import typed_settings as ts
+from delta import DeltaTable
+from loguru import logger
+from pathling import PathlingContext
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as F
+from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
 
 @ts.settings
@@ -44,7 +45,13 @@ spark = (
     .appName("fhir_to_lakehouse")
     .config(
         "spark.jars.packages",
-        "au.csiro.pathling:library-runtime:7.0.1,io.delta:delta-spark_2.12:3.2.0,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1",
+        ",".join(
+            [
+                "au.csiro.pathling:library-runtime:7.0.1",
+                "io.delta:delta-spark_2.12:3.2.0",
+                "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.4",
+            ]
+        ),
     )
     .config(
         "spark.sql.extensions",
@@ -173,7 +180,8 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
             .execute()
         )
 
-    # TODO: after upserting we could regularly run optimize and vacuum on the delta tables
+    # TODO: after upserting we could regularly run optimize
+    #  and vacuum on the delta tables
 
 
 # Write the output of a streaming aggregation query into Delta table

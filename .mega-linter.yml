@@ -1,0 +1,33 @@
+# Configuration file for MegaLinter
+# See all available variables at https://megalinter.io/configuration/ and in linters documentation
+APPLY_FIXES: none # all, none, or list of linter keys
+DISABLE:
+  - SPELL
+  - COPYPASTE
+SHOW_ELAPSED_TIME: true
+FILEIO_REPORTER: false
+
+DISABLE_LINTERS:
+  - REPOSITORY_DEVSKIM
+  - MARKDOWN_MARKDOWN_LINK_CHECK
+  - MARKDOWN_MARKDOWN_TABLE_FORMATTER
+  #  due to import-error
+  - PYTHON_PYLINT
+  - PYTHON_PYRIGHT
+  # due to "error - python package "--hash" is available for public registration."
+  - REPOSITORY_DUSTILOCK
+  - JSON_V8R
+  - YAML_V8R
+
+GROOVY_NPM_GROOVY_LINT_ARGUMENTS:
+  - "--failon=warning"
+
+REPOSITORY_TRIVY_ARGUMENTS:
+  - "--severity=MEDIUM,HIGH,CRITICAL"
+  - "--ignore-unfixed"
+
+REPOSITORY_KICS_ARGUMENTS:
+  - --fail-on=HIGH
+
+DISABLE_ERRORS_LINTERS:
+  - REPOSITORY_GRYPE
