@@ -1,4 +1,5 @@
 import os
+import sys
 from delta import DeltaTable
 from pyspark.sql import DataFrame, SparkSession, functions as F
 from pyspark.sql.types import ArrayType, StringType, StructType, StructField
@@ -7,18 +8,27 @@ from pathling import PathlingContext
 
 import typed_settings as ts
 
+
 @ts.settings
 class KafkaSettings:
     bootstrap_servers: str = "localhost:9094"
     topic: str = "fhir.msg"
     max_offsets_per_trigger: int = 10_000
 
+
+@ts.settings
+class SparkSettings:
+    install_packages_and_exit: bool = False
+    master: str = "local[*]"
+
+
 @ts.settings
 class Settings:
     kafka: KafkaSettings
+    spark: SparkSettings
 
-settings = ts.load(Settings, appname="fhir_to_lakehouse")
 
+settings = ts.load(Settings, appname="fhir_to_lakehouse", env_prefix="")
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(HERE, "data")
@@ -30,7 +40,9 @@ CHECKPOINT_DIR = os.path.join(HERE, "checkpoints")
 DELTA_DIR = os.path.join(HERE, "delta")
 
 spark = (
-    SparkSession.builder.config(
+    SparkSession.builder.master(settings.spark.master)
+    .appName("fhir_to_lakehouse")
+    .config(
         "spark.jars.packages",
         "au.csiro.pathling:library-runtime:7.0.1,io.delta:delta-spark_2.12:3.2.0,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1",
     )
@@ -45,6 +57,10 @@ spark = (
     .config("spark.sql.warehouse.dir", WAREHOUSE_DIR)
     .getOrCreate()
 )
+
+if settings.spark.install_packages_and_exit:
+    logger.info("Exiting after installing packages")
+    sys.exit()
 
 pc = PathlingContext.create(spark)
 

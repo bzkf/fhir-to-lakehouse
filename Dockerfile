@@ -10,4 +10,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 COPY . .
 
+# TODO: could cache-mount /home/spark/.ivy2/jars
+RUN SPARK_INSTALL_PACKAGES_AND_EXIT=1 python3 fhir_to_lakehouse/fhir_to_lakehouse.py
+
 ENTRYPOINT [ "python3", "fhir_to_lakehouse/fhir_to_lakehouse.py" ]
