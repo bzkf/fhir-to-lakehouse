@@ -2,8 +2,22 @@ import os
 from delta import DeltaTable
 from pyspark.sql import DataFrame, SparkSession, functions as F
 from pyspark.sql.types import ArrayType, StringType, StructType, StructField
-
+from loguru import logger
 from pathling import PathlingContext
+
+import typed_settings as ts
+
+@ts.settings
+class KafkaSettings:
+    bootstrap_servers: str = "localhost:9094"
+    topic: str = "fhir.msg"
+    max_offsets_per_trigger: int = 10_000
+
+@ts.settings
+class Settings:
+    kafka: KafkaSettings
+
+settings = ts.load(Settings, appname="fhir_to_lakehouse")
 
 
 HERE = os.path.abspath(os.path.dirname(__file__))
@@ -37,18 +51,21 @@ pc = PathlingContext.create(spark)
 
 df = (
     pc.spark.readStream.format("kafka")
-    .option("kafka.bootstrap.servers", "localhost:9094")
-    .option("subscribe", "fhir.msg")
+    .option("kafka.bootstrap.servers", settings.kafka.bootstrap_servers)
+    .option("subscribe", settings.kafka.topic)
     .option("startingOffsets", "earliest")
     .option("failOnDataLoss", "true")
-    .option("groupIdPrefix", "fhir-to-delta")
+    .option("groupIdPrefix", "fhir-to-lakehouse")
     .option("includeHeaders", "true")
-    .option("maxOffsetsPerTrigger", "10000")
+    .option("maxOffsetsPerTrigger", str(settings.kafka.max_offsets_per_trigger))
     .load()
 )
 
 
 def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
+
+    logger.info("Processing batch {batch_id}", batch_id=batch_id)
+
     schema = StructType(
         [
             StructField(
