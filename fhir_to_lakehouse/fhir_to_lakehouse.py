@@ -15,8 +15,8 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 @ts.settings
 class KafkaSettings:
     bootstrap_servers: str = "localhost:9094"
-    topic: str = "fhir.msg"
-    max_offsets_per_trigger: int = 10_000
+    topics: str = "fhir.msg"
+    max_offsets_per_trigger: int = 1000
 
 
 @ts.settings
@@ -25,7 +25,9 @@ class SparkSettings:
     master: str = "local[*]"
     s3_endpoint: str = "localhost:9000"
     warehouse_dir: str = os.path.join(HERE, "warehouse")
-    checkpoint_dir: str = os.path.join(HERE, "checkpoints")  # "s3a://fhir/checkpoint"
+    checkpoint_dir: str = "s3a://fhir/checkpoint"
+    driver_memory: str = "4g"
+    upkeep_interval: int = 50
 
 
 @ts.settings
@@ -34,7 +36,8 @@ class Settings:
     spark: SparkSettings
     aws_access_key_id: str = "admin"
     aws_secret_access_key: str = ts.secret(default="miniopass")
-    delta_database_dir: str = os.path.join(HERE, "lakehouse")  # "s3a://fhir/warehouse"
+    delta_database_dir: str = "s3a://fhir/warehouse"
+    vacuum_retention_hours: int = 24
 
 
 settings = ts.load(Settings, appname="fhir_to_lakehouse", env_prefix="")
@@ -62,10 +65,16 @@ spark = (
         "io.delta.sql.DeltaSparkSessionExtension",
     )
     .config(
+        "spark.driver.memory",
+        settings.spark.driver_memory,
+    )
+    .config("spark.ui.showConsoleProgress", "false")
+    .config(
         "spark.sql.catalog.spark_catalog",
         "org.apache.spark.sql.delta.catalog.DeltaCatalog",
     )
     .config("spark.sql.warehouse.dir", settings.spark.warehouse_dir)
+    .config("spark.databricks.delta.retentionDurationCheck.enabled", "false")
     .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     .config(
         "spark.hadoop.fs.s3a.path.style.access",
@@ -94,7 +103,7 @@ pc = PathlingContext.create(spark)
 df = (
     pc.spark.readStream.format("kafka")
     .option("kafka.bootstrap.servers", settings.kafka.bootstrap_servers)
-    .option("subscribe", settings.kafka.topic)
+    .option("subscribe", settings.kafka.topics)
     .option("startingOffsets", "earliest")
     .option("failOnDataLoss", "true")
     .option("groupIdPrefix", "fhir-to-lakehouse")
@@ -104,7 +113,7 @@ df = (
 )
 
 
-def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
+def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
     # might not be super efficient to log the batch size
     logger.info(
         "Processing batch {batch_id} containing {batch_size} rows",
@@ -161,6 +170,11 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
 
     resource_types_in_batch = df_result.select("resource_type").distinct().collect()
 
+    logger.info(
+        "Resource types in batch: {resource_types_in_batch}",
+        resource_types_in_batch=resource_types_in_batch,
+    )
+
     for resource_type_row in resource_types_in_batch:
         resource_type = resource_type_row["resource_type"]
 
@@ -177,12 +191,21 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
             column="resource",
         )
 
+        resource_delta_table_path = os.path.join(
+            settings.delta_database_dir, f"{resource_type}.parquet"
+        )
+
+        logger.info(
+            "Updating table {resource_type} at {resource_delta_table_path} with {resource_df_size} rows",
+            resource_type=resource_type,
+            resource_delta_table_path=resource_delta_table_path,
+            resource_df_size=resource_df.count(),
+        )
+
         delta_table = (
             DeltaTable.createIfNotExists(spark)
             .tableName(resource_type)
-            .location(
-                os.path.join(settings.delta_database_dir, f"{resource_type}.parquet")
-            )
+            .location(resource_delta_table_path)
             .addColumns(resource_df.schema)
             .execute()
         )
@@ -199,6 +222,13 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
             f"resource_type = '{resource_type}' and request_method = 'DELETE'"
         ).drop_duplicates(["request_url"])
 
+        logger.info(
+            "Deleting from table {resource_type} at {resource_delta_table_path} with {delete_df_size} rows",
+            resource_type=resource_type,
+            resource_delta_table_path=resource_delta_table_path,
+            delete_df_size=delete_df.count(),
+        )
+
         (
             delta_table.alias("t")
             .merge(delete_df.alias("s"), "s.request_resource_id = t.id")
@@ -206,13 +236,22 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id):
             .execute()
         )
 
-    # TODO: after upserting we could regularly run optimize
-    #  and vacuum on the delta tables
+    if batch_id % settings.spark.upkeep_interval == 0:
+        logger.info("Optimizing and vacuuming delta tables")
+
+        # TODO: should vacuum all tables, not just the ones in the batch
+        for resource_type_row in resource_types_in_batch:
+            resource_type = resource_type_row["resource_type"]
+            delta_table = DeltaTable.forPath(
+                spark, f"{settings.delta_database_dir}/{resource_type}.parquet"
+            )
+            delta_table.optimize().executeCompaction()
+            delta_table.vacuum(retentionHours=settings.vacuum_retention_hours)
 
 
 # Write the output of a streaming aggregation query into Delta table
 df.writeStream.option("checkpointLocation", settings.spark.checkpoint_dir).foreachBatch(
     upsert_to_delta
-).outputMode("update").start()
+).outputMode("update").queryName("fhir_bundles_to_delta_tables").start()
 
 spark.streams.awaitAnyTermination()

@@ -172,5 +172,10 @@ cython_debug/
 
 delta/
 checkpoints/
+warehouse/
 
 megalinter-reports/
+
+*.jar
+
+data/synthea/
