@@ -196,7 +196,8 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
         )
 
         logger.info(
-            "Updating table {resource_type} at {resource_delta_table_path} with {resource_df_size} rows",
+            "Updating table {resource_type} at {resource_delta_table_path} "
+            + "with {resource_df_size} rows",
             resource_type=resource_type,
             resource_delta_table_path=resource_delta_table_path,
             resource_df_size=resource_df.count(),
@@ -223,7 +224,8 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
         ).drop_duplicates(["request_url"])
 
         logger.info(
-            "Deleting from table {resource_type} at {resource_delta_table_path} with {delete_df_size} rows",
+            "Deleting from table {resource_type} at {resource_delta_table_path} "
+            + "with {delete_df_size} rows",
             resource_type=resource_type,
             resource_delta_table_path=resource_delta_table_path,
             delete_df_size=delete_df.count(),
