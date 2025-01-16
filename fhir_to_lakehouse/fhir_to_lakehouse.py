@@ -112,6 +112,31 @@ df = (
     .load()
 )
 
+fhir_bundle_schema = StructType(
+    [
+        StructField(
+            "entry",
+            ArrayType(
+                StructType(
+                    [
+                        StructField("resource", StringType(), True),
+                        StructField(
+                            "request",
+                            StructType(
+                                [
+                                    StructField("method", StringType(), True),
+                                    StructField("url", StringType(), True),
+                                ]
+                            ),
+                        ),
+                    ]
+                )
+            ),
+            True,
+        ),
+    ]
+)
+
 
 def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
     # might not be super efficient to log the batch size
@@ -121,36 +146,13 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
         batch_size=micro_batch_df.count(),
     )
 
-    schema = StructType(
-        [
-            StructField(
-                "entry",
-                ArrayType(
-                    StructType(
-                        [
-                            StructField("resource", StringType(), True),
-                            StructField(
-                                "request",
-                                StructType(
-                                    [
-                                        StructField("method", StringType(), True),
-                                        StructField("url", StringType(), True),
-                                    ]
-                                ),
-                            ),
-                        ]
-                    )
-                ),
-                True,
-            ),
-        ]
-    )
-
     micro_batch_df = micro_batch_df.withColumn(
         "bundle", micro_batch_df.value.cast("string")
     )
 
-    parsed = micro_batch_df.withColumn("parsed_bundle", F.from_json("bundle", schema))
+    parsed = micro_batch_df.withColumn(
+        "parsed_bundle", F.from_json("bundle", fhir_bundle_schema)
+    )
 
     df_exploded = parsed.withColumn(
         "entry",
@@ -168,22 +170,26 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
         "resource_type", df_result["request_url_split"].getItem(0)
     ).withColumn("request_resource_id", df_result["request_url_split"].getItem(1))
 
-    resource_types_in_batch = df_result.select("resource_type").distinct().collect()
+    resource_types_in_batch = [
+        row["resource_type"]
+        for row in df_result.select("resource_type").distinct().collect()
+    ]
 
     logger.info(
         "Resource types in batch: {resource_types_in_batch}",
         resource_types_in_batch=resource_types_in_batch,
     )
 
-    for resource_type_row in resource_types_in_batch:
-        resource_type = resource_type_row["resource_type"]
-
-        # TODO: make sure the latest version of the resource is kept, not just any.
-        #       order by timestamp/offset ?
-        # also check if we need watermarks for dropDuplicates
-        put_df = df_result.filter(
-            f"resource_type = '{resource_type}' and request_method = 'PUT'"
-        ).drop_duplicates(["request_url"])
+    # TODO: find a way to run this in parallel per resource type
+    for resource_type in resource_types_in_batch:
+        # TODO: double-check if the sorting here is correct
+        put_df = (
+            df_result.filter(
+                f"resource_type = '{resource_type}' and request_method = 'PUT'"
+            )
+            .sort(["timestamp", "partition", "offset"], ascending=False)
+            .drop_duplicates(["request_url"])
+        )
 
         resource_df = pc.encode(
             put_df,
@@ -219,9 +225,13 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
             .execute()
         )
 
-        delete_df = df_result.filter(
-            f"resource_type = '{resource_type}' and request_method = 'DELETE'"
-        ).drop_duplicates(["request_url"])
+        delete_df = (
+            df_result.filter(
+                f"resource_type = '{resource_type}' and request_method = 'DELETE'"
+            )
+            .sort(["timestamp", "partition", "offset"], ascending=False)
+            .drop_duplicates(["request_url"])
+        )
 
         logger.info(
             "Deleting from table {resource_type} at {resource_delta_table_path} "
@@ -238,15 +248,10 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
             .execute()
         )
 
-    if batch_id % settings.spark.upkeep_interval == 0:
-        logger.info("Optimizing and vacuuming delta tables")
-
         # TODO: should vacuum all tables, not just the ones in the batch
-        for resource_type_row in resource_types_in_batch:
-            resource_type = resource_type_row["resource_type"]
-            delta_table = DeltaTable.forPath(
-                spark, f"{settings.delta_database_dir}/{resource_type}.parquet"
-            )
+        if batch_id % settings.spark.upkeep_interval == 0:
+            logger.info("Optimizing and vacuuming table")
+            delta_table.detail().show()
             delta_table.optimize().executeCompaction()
             delta_table.vacuum(retentionHours=settings.vacuum_retention_hours)
 
