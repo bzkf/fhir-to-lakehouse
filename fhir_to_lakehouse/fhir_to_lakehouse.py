@@ -24,6 +24,7 @@ class SparkSettings:
     install_packages_and_exit: bool = False
     master: str = "local[*]"
     s3_endpoint: str = "localhost:9000"
+    s3_connection_ssl_enabled: str = "false"
     warehouse_dir: str = os.path.join(HERE, "warehouse")
     checkpoint_dir: str = "s3a://fhir/checkpoint"
     driver_memory: str = "4g"
@@ -82,11 +83,11 @@ spark = (
     )
     .config(
         "spark.hadoop.fs.s3a.endpoint",
-        "localhost:9000",
+        settings.spark.s3_endpoint,
     )
     .config(
         "spark.hadoop.fs.s3a.connection.ssl.enabled",
-        "false",
+        settings.spark.s3_connection_ssl_enabled,
     )
     .config("fs.s3a.access.key", settings.aws_access_key_id)
     .config("fs.s3a.secret.key", settings.aws_secret_access_key)
