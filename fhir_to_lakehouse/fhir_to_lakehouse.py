@@ -83,7 +83,7 @@ spark = (
     )
     .config(
         "spark.hadoop.fs.s3a.endpoint",
-        "localhost:9000",
+        settings.spark.s3_endpoint,
     )
     .config(
         "spark.hadoop.fs.s3a.connection.ssl.enabled",
