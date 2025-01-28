@@ -12,18 +12,19 @@ else
   echo "File $SYNTHEA_JAR already exists. Skipping download."
 fi
 
-java -jar synthea-with-dependencies.jar -p "10" --exporter.baseDirectory="./synthea"
+java -jar synthea-with-dependencies.jar -p "25000" -c synthea.properties
 
 OUTPUT_FILE="bundles.ndjson"
 
 echo "" >"$OUTPUT_FILE"
 
 for file in "./synthea/fhir"/*.json; do
-  # Ensure the file is a valid JSON file
   if [[ -f "$file" ]]; then
-    # Convert the JSON file into NDJSON format (assuming it's a JSON array)
-    jq -c '.' "$file" >>"$OUTPUT_FILE"
+    # Synthea always generates Patient & Encounter resources, but we only care about Patients
+    jq -c '.entry |= map(
+      select(.resource.resourceType == "Patient") |
+      .request.method = "PUT" |
+      .request.url = "\(.resource.resourceType)/\(.resource.id | sub("^urn:uuid:"; ""))"
+    )' "$file" >>"$OUTPUT_FILE"
   fi
 done
-
-# TODO: need to path the transactions entry.request.method to PUT and .url to resourceType/id
