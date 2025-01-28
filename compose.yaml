@@ -15,7 +15,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_NUM_PARTITIONS: 12
       KAFKA_MESSAGE_MAX_BYTES: 104857600 # 100MiB
 
   kafbat-ui:
@@ -49,9 +49,10 @@ services:
     restart: on-failure
     command:
       [
-        "while true; do kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson; sleep 5; done",
+        "while true; do kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson; sleep 30; done",
       ]
     volumes:
       - ./data/bundles.ndjson:/data/bundles.ndjson:ro
     depends_on:
-      - kafka
+      kafka:
+        condition: service_started
