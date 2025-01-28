@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 
 import typed_settings as ts
 from delta import DeltaTable
@@ -9,6 +10,14 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
+from opentelemetry.exporter.prometheus import PrometheusMetricReader
+from opentelemetry.metrics import get_meter_provider, set_meter_provider
+from opentelemetry.sdk.metrics import MeterProvider
+
+from opentelemetry.metrics import get_meter
+
+from prometheus_client import start_http_server
+
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 
@@ -16,7 +25,9 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 class KafkaSettings:
     bootstrap_servers: str = "localhost:9094"
     topics: str = "fhir.msg"
-    max_offsets_per_trigger: int = 1000
+    max_offsets_per_trigger: int = 10000
+    min_offsets_per_trigger: int = 10000
+    max_trigger_delay: str = "15m"
 
 
 @ts.settings
@@ -29,6 +40,7 @@ class SparkSettings:
     checkpoint_dir: str = "s3a://fhir/checkpoint"
     driver_memory: str = "4g"
     upkeep_interval: int = 50
+    streaming_processing_time: str = "0 seconds"
 
 
 @ts.settings
@@ -39,11 +51,26 @@ class Settings:
     aws_secret_access_key: str = ts.secret(default="miniopass")
     delta_database_dir: str = "s3a://fhir/warehouse"
     vacuum_retention_hours: int = 24
+    metrics_port: int = 8000
+    metrics_addr: str = "127.0.0.1"
 
 
 settings = ts.load(Settings, appname="fhir_to_lakehouse", env_prefix="")
 
 logger.info("Settings: {settings}", settings=settings)
+
+start_http_server(port=settings.metrics_port, addr=settings.metrics_addr)
+
+reader = PrometheusMetricReader()
+# Meter is responsible for creating and recording metrics
+set_meter_provider(MeterProvider(metric_readers=[reader]))
+meter = get_meter_provider().get_meter("fhir_to_lakehouse.instrumentation")
+
+delta_operations_timer = meter.create_histogram(
+    name="delta-operation-duration",
+    unit="seconds",
+    description="Duration of Delta Table operations",
+)
 
 # other config can be set via $SPARK_HOME/conf/spark-defaults.conf,
 # e.g. compression type.
@@ -70,6 +97,7 @@ spark = (
         settings.spark.driver_memory,
     )
     .config("spark.ui.showConsoleProgress", "false")
+    .config("spark.ui.prometheus.enabled", "true")
     .config(
         "spark.sql.catalog.spark_catalog",
         "org.apache.spark.sql.delta.catalog.DeltaCatalog",
@@ -77,6 +105,9 @@ spark = (
     .config("spark.sql.warehouse.dir", settings.spark.warehouse_dir)
     .config("spark.databricks.delta.retentionDurationCheck.enabled", "false")
     .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    .config("spark.sql.parquet.compression.codec", "zstd")
+    .config("parquet.compression.codec.zstd.level", "9")
+    .config("spark.io.compression.codec", "zstd")
     .config(
         "spark.hadoop.fs.s3a.path.style.access",
         "true",
@@ -110,6 +141,8 @@ df = (
     .option("groupIdPrefix", "fhir-to-lakehouse")
     .option("includeHeaders", "true")
     .option("maxOffsetsPerTrigger", str(settings.kafka.max_offsets_per_trigger))
+    .option("minOffsetsPerTrigger", str(settings.kafka.min_offsets_per_trigger))
+    .option("maxTriggerDelay", settings.kafka.max_trigger_delay)
     .load()
 )
 
@@ -182,8 +215,11 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
     )
 
     # TODO: find a way to run this in parallel per resource type
+    #       - order, then partition by resource type (2 consecutive foreachBatch)
     for resource_type in resource_types_in_batch:
         # TODO: double-check if the sorting here is correct
+
+        start = time.perf_counter()
         put_df = (
             df_result.filter(
                 f"resource_type = '{resource_type}' and request_method = 'PUT'"
@@ -225,7 +261,10 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
             .whenNotMatchedInsertAll()
             .execute()
         )
+        end = time.perf_counter()
+        delta_operations_timer.record(end - start, {"operation": "merge"})
 
+        start = time.perf_counter()
         delete_df = (
             df_result.filter(
                 f"resource_type = '{resource_type}' and request_method = 'DELETE'"
@@ -248,18 +287,36 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
             .whenMatchedDelete()
             .execute()
         )
+        end = time.perf_counter()
+        delta_operations_timer.record(end - start, {"operation": "delete"})
 
         # TODO: should vacuum all tables, not just the ones in the batch
         if batch_id % settings.spark.upkeep_interval == 0:
-            logger.info("Optimizing and vacuuming table")
-            delta_table.detail().show()
-            delta_table.optimize().executeCompaction()
-            delta_table.vacuum(retentionHours=settings.vacuum_retention_hours)
+            optimize_and_vacuum_table(delta_table)
+
+
+def optimize_and_vacuum_table(delta_table: DeltaTable):
+    logger.info("Optimizing and vacuuming table")
+    delta_table.detail().show(truncate=False)
+
+    start = time.perf_counter()
+    optimize_df = delta_table.optimize().executeCompaction()
+    end = time.perf_counter()
+    delta_operations_timer.record(end - start, {"operation": "optimize"})
+
+    optimize_df.show(truncate=False)
+
+    start = time.perf_counter()
+    delta_table.vacuum(retentionHours=settings.vacuum_retention_hours)
+    end = time.perf_counter()
+    delta_operations_timer.record(end - start, {"operation": "vacuum"})
 
 
 # Write the output of a streaming aggregation query into Delta table
 df.writeStream.option("checkpointLocation", settings.spark.checkpoint_dir).foreachBatch(
     upsert_to_delta
-).outputMode("update").queryName("fhir_bundles_to_delta_tables").start()
+).outputMode("update").queryName("fhir_bundles_to_delta_tables").trigger(
+    processingTime=settings.spark.streaming_processing_time
+).start()
 
 spark.streams.awaitAnyTermination()
