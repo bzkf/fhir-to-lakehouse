@@ -11,12 +11,27 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.metrics import get_meter_provider, set_meter_provider
+from opentelemetry.metrics import get_meter_provider, set_meter_provider, Histogram
 from opentelemetry.sdk.metrics import MeterProvider
 
 from prometheus_client import start_http_server
 
 HERE = os.path.abspath(os.path.dirname(__file__))
+
+
+class MeasureElapsed:
+    def __init__(self, histogram: Histogram, attributes: dict[str, str]):
+        self.histogram = histogram
+        self.attributes = attributes
+
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.time = time.perf_counter() - self.start
+        self.histogram.record(self.time, self.attributes)
+        logger.info("Elapsed time: {time}", time=self.time)
 
 
 @ts.settings
@@ -50,7 +65,7 @@ class Settings:
     delta_database_dir: str = "s3a://fhir/warehouse"
     vacuum_retention_hours: int = 24
     metrics_port: int = 8000
-    metrics_addr: str = "127.0.0.1"
+    metrics_addr: str = "0.0.0.0"
 
 
 settings = ts.load(Settings, appname="fhir_to_lakehouse", env_prefix="")
@@ -68,6 +83,12 @@ delta_operations_timer = meter.create_histogram(
     name="delta-operation-duration",
     unit="seconds",
     description="Duration of Delta Table operations",
+)
+
+resources_processed_counter = meter.create_counter(
+    name="resources-processed-total",
+    unit="{Count}",
+    description="Total number of resources written or deleted from Delta Tables",
 )
 
 # other config can be set via $SPARK_HOME/conf/spark-defaults.conf,
@@ -103,9 +124,6 @@ spark = (
     .config("spark.sql.warehouse.dir", settings.spark.warehouse_dir)
     .config("spark.databricks.delta.retentionDurationCheck.enabled", "false")
     .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    .config("spark.sql.parquet.compression.codec", "zstd")
-    .config("parquet.compression.codec.zstd.level", "9")
-    .config("spark.io.compression.codec", "zstd")
     .config(
         "spark.hadoop.fs.s3a.path.style.access",
         "true",
@@ -170,7 +188,7 @@ fhir_bundle_schema = StructType(
 )
 
 
-def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
+def process_batch(micro_batch_df: DataFrame, batch_id: int):
     # might not be super efficient to log the batch size
     logger.info(
         "Processing batch {batch_id} containing {batch_size} rows",
@@ -217,7 +235,6 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
     for resource_type in resource_types_in_batch:
         # TODO: double-check if the sorting here is correct
 
-        start = time.perf_counter()
         put_df = (
             df_result.filter(
                 f"resource_type = '{resource_type}' and request_method = 'PUT'"
@@ -236,14 +253,6 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
             settings.delta_database_dir, f"{resource_type}.parquet"
         )
 
-        logger.info(
-            "Updating table {resource_type} at {resource_delta_table_path} "
-            + "with {resource_df_size} rows",
-            resource_type=resource_type,
-            resource_delta_table_path=resource_delta_table_path,
-            resource_df_size=resource_df.count(),
-        )
-
         delta_table = (
             DeltaTable.createIfNotExists(spark)
             .tableName(resource_type)
@@ -252,17 +261,16 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
             .execute()
         )
 
-        (
-            delta_table.alias("t")
-            .merge(resource_df.alias("s"), "s.id = t.id")
-            .whenMatchedUpdateAll()
-            .whenNotMatchedInsertAll()
-            .execute()
+        logger.info(
+            "Table details: {details}", details=delta_table.detail().toJSON().collect()
         )
-        end = time.perf_counter()
-        delta_operations_timer.record(end - start, {"operation": "merge"})
 
-        start = time.perf_counter()
+        with MeasureElapsed(
+            delta_operations_timer,
+            {"operation": "merge", "resource_type": resource_type},
+        ):
+            merge_into_table(resource_df, resource_type, delta_table)
+
         delete_df = (
             df_result.filter(
                 f"resource_type = '{resource_type}' and request_method = 'DELETE'"
@@ -271,48 +279,95 @@ def upsert_to_delta(micro_batch_df: DataFrame, batch_id: int):
             .drop_duplicates(["request_url"])
         )
 
-        logger.info(
-            "Deleting from table {resource_type} at {resource_delta_table_path} "
-            + "with {delete_df_size} rows",
-            resource_type=resource_type,
-            resource_delta_table_path=resource_delta_table_path,
-            delete_df_size=delete_df.count(),
-        )
-
-        (
-            delta_table.alias("t")
-            .merge(delete_df.alias("s"), "s.request_resource_id = t.id")
-            .whenMatchedDelete()
-            .execute()
-        )
-        end = time.perf_counter()
-        delta_operations_timer.record(end - start, {"operation": "delete"})
+        with MeasureElapsed(
+            delta_operations_timer,
+            {"operation": "delete", "resource_type": resource_type},
+        ):
+            delete_from_table(delete_df, resource_type, delta_table)
 
         # TODO: should vacuum all tables, not just the ones in the batch
         if batch_id % settings.spark.upkeep_interval == 0:
-            optimize_and_vacuum_table(delta_table)
+            optimize_and_vacuum_table(delta_table, resource_type=resource_type)
+
+        logger.info("Finished processing batch {batch_id}", batch_id=batch_id)
 
 
-def optimize_and_vacuum_table(delta_table: DeltaTable):
+def merge_into_table(
+    resource_df: DataFrame, resource_type: str, delta_table: DeltaTable
+):
+    resources_count = resource_df.count()
+
+    logger.info(
+        "Merging into table {resource_type} with {resources_count} rows",
+        resource_type=resource_type,
+        resources_count=resources_count,
+    )
+
+    (
+        delta_table.alias("t")
+        .merge(resource_df.alias("s"), "s.id = t.id")
+        .whenMatchedUpdateAll()
+        .whenNotMatchedInsertAll()
+        .execute()
+    )
+
+    resources_processed_counter.add(
+        resources_count, {"operation": "written", "resource_type": resource_type}
+    )
+
+
+def delete_from_table(
+    delete_df: DataFrame,
+    resource_type: str,
+    delta_table: DeltaTable,
+):
+    deletes_count = delete_df.count()
+
+    logger.info(
+        "Deleting from table {resource_type} with {delete_df_size} rows",
+        resource_type=resource_type,
+        delete_df_size=deletes_count,
+    )
+
+    (
+        delta_table.alias("t")
+        .merge(delete_df.alias("s"), "s.request_resource_id = t.id")
+        .whenMatchedDelete()
+        .execute()
+    )
+
+    resources_processed_counter.add(
+        deletes_count, {"operation": "delete", "resource_type": resource_type}
+    )
+
+
+def optimize_and_vacuum_table(delta_table: DeltaTable, resource_type: str):
     logger.info("Optimizing and vacuuming table")
-    delta_table.detail().show(truncate=False)
 
     start = time.perf_counter()
     optimize_df = delta_table.optimize().executeCompaction()
     end = time.perf_counter()
-    delta_operations_timer.record(end - start, {"operation": "optimize"})
+    delta_operations_timer.record(
+        end - start, {"operation": "optimize", "resource_type": resource_type}
+    )
 
-    optimize_df.show(truncate=False)
+    logger.info(
+        "Finished optimizing table. Statistics: {stats}",
+        stats=optimize_df.toJSON().collect(),
+    )
 
     start = time.perf_counter()
     delta_table.vacuum(retentionHours=settings.vacuum_retention_hours)
     end = time.perf_counter()
-    delta_operations_timer.record(end - start, {"operation": "vacuum"})
+    delta_operations_timer.record(
+        end - start, {"operation": "vacuum", "resource_type": resource_type}
+    )
+    logger.info("Finished vacuuming table")
 
 
 # Write the output of a streaming aggregation query into Delta table
 df.writeStream.option("checkpointLocation", settings.spark.checkpoint_dir).foreachBatch(
-    upsert_to_delta
+    process_batch
 ).outputMode("update").queryName("fhir_bundles_to_delta_tables").trigger(
     processingTime=settings.spark.streaming_processing_time
 ).start()
