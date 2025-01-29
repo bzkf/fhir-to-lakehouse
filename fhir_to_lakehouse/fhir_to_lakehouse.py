@@ -344,25 +344,27 @@ def delete_from_table(
 def optimize_and_vacuum_table(delta_table: DeltaTable, resource_type: str):
     logger.info("Optimizing and vacuuming table")
 
-    start = time.perf_counter()
-    optimize_df = delta_table.optimize().executeCompaction()
-    end = time.perf_counter()
-    delta_operations_timer.record(
-        end - start, {"operation": "optimize", "resource_type": resource_type}
-    )
+    with MeasureElapsed(
+        delta_operations_timer,
+        {"operation": "optimize", "resource_type": resource_type},
+    ):
+        optimize_df = delta_table.optimize().executeCompaction()
 
     logger.info(
         "Finished optimizing table. Statistics: {stats}",
         stats=optimize_df.toJSON().collect(),
     )
 
-    start = time.perf_counter()
-    delta_table.vacuum(retentionHours=settings.vacuum_retention_hours)
-    end = time.perf_counter()
-    delta_operations_timer.record(
-        end - start, {"operation": "vacuum", "resource_type": resource_type}
+    with MeasureElapsed(
+        delta_operations_timer,
+        {"operation": "vacuum", "resource_type": resource_type},
+    ):
+        vacuum_df = delta_table.vacuum(retentionHours=settings.vacuum_retention_hours)
+
+    logger.info(
+        "Finished vacuuming table. Statistics: {stats}",
+        stats=vacuum_df.toJSON().collect(),
     )
-    logger.info("Finished vacuuming table")
 
 
 # Write the output of a streaming aggregation query into Delta table
