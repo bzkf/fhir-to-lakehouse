@@ -359,12 +359,9 @@ def optimize_and_vacuum_table(delta_table: DeltaTable, resource_type: str):
         delta_operations_timer,
         {"operation": "vacuum", "resource_type": resource_type},
     ):
-        vacuum_df = delta_table.vacuum(retentionHours=settings.vacuum_retention_hours)
+        delta_table.vacuum(retentionHours=settings.vacuum_retention_hours)
 
-    logger.info(
-        "Finished vacuuming table. Statistics: {stats}",
-        stats=vacuum_df.toJSON().collect(),
-    )
+    logger.info("Finished vacuuming table.")
 
 
 # Write the output of a streaming aggregation query into Delta table
