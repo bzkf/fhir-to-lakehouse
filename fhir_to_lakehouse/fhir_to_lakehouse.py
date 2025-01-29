@@ -6,8 +6,7 @@ import typed_settings as ts
 from delta import DeltaTable
 from loguru import logger
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.metrics import (Histogram, get_meter_provider,
-                                   set_meter_provider)
+from opentelemetry.metrics import Histogram, get_meter_provider, set_meter_provider
 from opentelemetry.sdk.metrics import MeterProvider
 from pathling import PathlingContext
 from prometheus_client import start_http_server
