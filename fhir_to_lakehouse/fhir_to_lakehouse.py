@@ -5,16 +5,15 @@ import time
 import typed_settings as ts
 from delta import DeltaTable
 from loguru import logger
+from opentelemetry.exporter.prometheus import PrometheusMetricReader
+from opentelemetry.metrics import (Histogram, get_meter_provider,
+                                   set_meter_provider)
+from opentelemetry.sdk.metrics import MeterProvider
 from pathling import PathlingContext
+from prometheus_client import start_http_server
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
-
-from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.metrics import get_meter_provider, set_meter_provider, Histogram
-from opentelemetry.sdk.metrics import MeterProvider
-
-from prometheus_client import start_http_server
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
@@ -65,7 +64,7 @@ class Settings:
     delta_database_dir: str = "s3a://fhir/warehouse"
     vacuum_retention_hours: int = 24
     metrics_port: int = 8000
-    metrics_addr: str = "0.0.0.0"
+    metrics_addr: str = "127.0.0.1"
 
 
 settings = ts.load(Settings, appname="fhir_to_lakehouse", env_prefix="")
