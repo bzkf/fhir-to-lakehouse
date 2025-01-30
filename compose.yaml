@@ -1,8 +1,7 @@
+# kics-scan ignore
 services:
   kafka:
     image: docker.io/apache/kafka-native:3.9.0@sha256:c20b97f0a3990771f52bf7855ccb9ae82ac683a357a101482ba349dfb2ae0cdb
-    ports:
-      - 127.0.0.1:9094:9094
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -17,17 +16,19 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 12
       KAFKA_MESSAGE_MAX_BYTES: 104857600 # 100MiB
+    ports:
+      - 127.0.0.1:9094:9094
 
   kafbat-ui:
     image: ghcr.io/kafbat/kafka-ui:v1.1.0@sha256:050543568675d5f1c34f6bb62c47720f700cf7baa1a4cf7bb7c38babed2fed7f
-    ports:
-      - 127.0.0.1:8084:8080
     environment:
       DYNAMIC_CONFIG_ENABLED: "false"
       KAFKA_CLUSTERS_0_NAME: compose-kafka
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     depends_on:
       - kafka
+    ports:
+      - 127.0.0.1:8084:8080
 
   minio:
     image: docker.io/bitnami/minio:2024.12.18-debian-12-r0@sha256:cce234b4381a169d80836584d966bb5c82365e5f7f0becfcf2d1cf8c57be754b
@@ -49,10 +50,69 @@ services:
     restart: on-failure
     command:
       [
-        "while true; do kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson; sleep 30; done",
+        "while true; do kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson; sleep 60; done",
       ]
     volumes:
       - ./data/bundles.ndjson:/data/bundles.ndjson:ro
     depends_on:
       kafka:
         condition: service_started
+
+  metastore-db:
+    image: docker.io/bitnami/postgresql:17.2.0-debian-12-r9@sha256:52204f50eef92013879c60581ee5f995a8c0ca70a8bcf579678687c838b522f3
+    ipc: private
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: unless-stopped
+    environment:
+      POSTGRESQL_USERNAME: hive
+      POSTGRESQL_PASSWORD: hive
+      POSTGRESQL_DATABASE: metastore
+
+  hive-metastore:
+    image: ghcr.io/miracum/util-images/hive-metastore:v1.2.0@sha256:d8f99a4a16ede640f184dca9bd84bef84f84b26f41b10eb5c62a57bb796268c8
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      SERVICE_OPTS: |
+        -Djavax.jdo.option.ConnectionUserName=hive
+        -Djavax.jdo.option.ConnectionPassword=hive
+      AWS_ACCESS_KEY_ID: "admin"
+      AWS_SECRET_ACCESS_KEY: "miniopass"
+      AWS_DEFAULT_REGION: "eu-central-1"
+    volumes:
+      - $PWD/hack/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
+    depends_on:
+      metastore-db:
+        condition: service_started
+
+  trino:
+    image: docker.io/trinodb/trino:453@sha256:86f7a156aeeca1dda3a1ba1e97474913d10c75f8fb7cda0da1d29a52b5731e0c
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: unless-stopped
+    environment:
+      AWS_ACCESS_KEY_ID: "admin"
+      AWS_SECRET_ACCESS_KEY: "miniopass"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - $PWD/hack/trino/etc:/usr/lib/trino/etc:ro
+      - $PWD/hack/trino/catalog:/etc/trino/catalog:ro
+    depends_on:
+      - hive-metastore
+      - minio

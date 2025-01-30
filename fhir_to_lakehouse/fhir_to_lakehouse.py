@@ -64,6 +64,7 @@ class Settings:
     vacuum_retention_hours: int = 24
     metrics_port: int = 8000
     metrics_addr: str = "127.0.0.1"
+    metastore_url: str = ""
 
 
 settings = ts.load(Settings, appname="fhir_to_lakehouse", env_prefix="")
@@ -91,7 +92,7 @@ resources_processed_counter = meter.create_counter(
 
 # other config can be set via $SPARK_HOME/conf/spark-defaults.conf,
 # e.g. compression type.
-spark = (
+spark_config = (
     SparkSession.builder.master(settings.spark.master)
     .appName("fhir_to_lakehouse")
     .config(
@@ -121,6 +122,12 @@ spark = (
     )
     .config("spark.sql.warehouse.dir", settings.spark.warehouse_dir)
     .config("spark.databricks.delta.retentionDurationCheck.enabled", "false")
+    .config("spark.databricks.delta.schema.autoMerge.enabled", "false")
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .config(
+        "spark.sql.catalog.spark_catalog",
+        "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+    )
     .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     .config(
         "spark.hadoop.fs.s3a.path.style.access",
@@ -134,10 +141,18 @@ spark = (
         "spark.hadoop.fs.s3a.connection.ssl.enabled",
         settings.spark.s3_connection_ssl_enabled,
     )
+    .config("fs.s3a.committer.name", "magic")
+    .config("fs.s3a.committer.magic.enabled", "true")
     .config("fs.s3a.access.key", settings.aws_access_key_id)
     .config("fs.s3a.secret.key", settings.aws_secret_access_key)
-    .getOrCreate()
 )
+
+if settings.metastore_url:
+    spark_config.config("spark.hive.metastore.uris", settings.metastore_url).config(
+        "spark.sql.catalogImplementation", "hive"
+    )
+
+spark = spark_config.getOrCreate()
 
 if settings.spark.install_packages_and_exit:
     logger.info("Exiting after installing packages")
@@ -263,6 +278,14 @@ def process_batch(micro_batch_df: DataFrame, batch_id: int):
             "Table details: {details}", details=delta_table.detail().toJSON().collect()
         )
 
+        # XXX: not necessary for every batch...
+        if settings.metastore_url:
+            with MeasureElapsed(
+                delta_operations_timer,
+                {"operation": "register", "resource_type": resource_type},
+            ):
+                register_table_in_metastore(delta_table, resource_delta_table_path)
+
         with MeasureElapsed(
             delta_operations_timer,
             {"operation": "merge", "resource_type": resource_type},
@@ -360,6 +383,36 @@ def optimize_and_vacuum_table(delta_table: DeltaTable, resource_type: str):
         delta_table.vacuum(retentionHours=settings.vacuum_retention_hours)
 
     logger.info("Finished vacuuming table.")
+
+
+def register_table_in_metastore(table: DeltaTable, table_path: str):
+    logger.info(
+        "Registering '{table}' in '{metastore}'",
+        table=table_path,
+        metastore=settings.metastore_url,
+    )
+
+    # the second to last part when splitting by '/' is 'default'
+    schema = table_path.split("/")[-2]
+
+    # the table path but without the table name
+    schema_path = table_path.removesuffix(table_path.split("/")[-1])
+
+    # the final folder name without the '.parquet' extension
+    table_name = table_path.split("/")[-1].removesuffix(".parquet")
+
+    create_schema_query = (
+        f"CREATE SCHEMA IF NOT EXISTS {schema} LOCATION '{schema_path}'"
+    )
+    logger.info(create_schema_query)
+    table._spark.sql(create_schema_query)
+
+    create_table_query = (
+        f"CREATE TABLE IF NOT EXISTS {schema}.{table_name} "
+        + f"USING DELTA LOCATION '{table_path}'"
+    )
+    logger.info(create_table_query)
+    table._spark.sql(create_table_query)
 
 
 # Write the output of a streaming aggregation query into Delta table
