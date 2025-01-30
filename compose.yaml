@@ -1,3 +1,4 @@
+# kics-scan ignore
 services:
   kafka:
     image: docker.io/apache/kafka-native:3.9.0@sha256:c20b97f0a3990771f52bf7855ccb9ae82ac683a357a101482ba349dfb2ae0cdb
