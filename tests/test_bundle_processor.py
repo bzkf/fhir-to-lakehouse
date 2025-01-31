@@ -1,15 +1,16 @@
 import datetime
 import os
+
 import pytest
-from bundle_processor import BundleProcessor
+from delta import DeltaTable
 from pathling import PathlingContext
 from pyspark.sql.types import (
+    BinaryType,
     StructField,
     StructType,
-    BinaryType,
 )
-from delta import DeltaTable
 
+from bundle_processor import BundleProcessor
 from settings import KafkaSettings, Settings, SparkSettings
 
 HERE = os.path.abspath(os.path.dirname(__file__))
