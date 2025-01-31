@@ -12,7 +12,7 @@ else
   echo "File $SYNTHEA_JAR already exists. Skipping download."
 fi
 
-java -jar synthea-with-dependencies.jar -p "25000" -c synthea.properties
+java -jar synthea-with-dependencies.jar -p "1000" -c synthea.properties
 
 OUTPUT_FILE="bundles.ndjson"
 
@@ -22,7 +22,7 @@ for file in "./synthea/fhir"/*.json; do
   if [[ -f "$file" ]]; then
     # Synthea always generates Patient & Encounter resources, but we only care about Patients
     jq -c '.entry |= map(
-      select(.resource.resourceType == "Patient") |
+      select(.resource.resourceType == "Patient" or .resource.resourceType == "Condition" or .resource.resourceType == "Observation") |
       .request.method = "PUT" |
       .request.url = "\(.resource.resourceType)/\(.resource.id | sub("^urn:uuid:"; ""))"
     )' "$file" >>"$OUTPUT_FILE"
