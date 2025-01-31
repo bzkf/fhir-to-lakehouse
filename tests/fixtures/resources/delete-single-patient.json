@@ -1,0 +1,12 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "Patient/cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+      }
+    }
+  ]
+}
