@@ -163,11 +163,12 @@ class BundleProcessor:
                 .drop_duplicates(["request_url"])
             )
 
-            with MeasureElapsed(
-                delta_operations_timer,
-                {"operation": "delete", "resource_type": resource_type},
-            ):
-                self._delete_from_table(delete_df, resource_type, delta_table)
+            if delete_df.count() > 0:
+                with MeasureElapsed(
+                    delta_operations_timer,
+                    {"operation": "delete", "resource_type": resource_type},
+                ):
+                    self._delete_from_table(delete_df, resource_type, delta_table)
 
             # TODO: should vacuum all tables, not just the ones in the batch
             if batch_id % self.settings.spark.upkeep_interval == 0:
