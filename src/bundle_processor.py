@@ -3,12 +3,13 @@ import sys
 
 from delta import DeltaTable
 from loguru import logger
-from metrics import MeasureElapsed
 from opentelemetry.metrics import get_meter_provider
 from pathling import PathlingContext
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
+
+from metrics import MeasureElapsed
 from settings import Settings
 
 meter = get_meter_provider().get_meter("fhir_to_lakehouse.instrumentation")

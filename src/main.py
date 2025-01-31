@@ -1,6 +1,5 @@
 import sys
 
-from bundle_processor import BundleProcessor
 from loguru import logger
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.metrics import set_meter_provider
@@ -8,6 +7,8 @@ from opentelemetry.sdk.metrics import MeterProvider
 from pathling import PathlingContext
 from prometheus_client import start_http_server
 from pyspark.sql import SparkSession
+
+from bundle_processor import BundleProcessor
 from settings import settings
 
 logger.info("Settings: {settings}", settings=settings)
