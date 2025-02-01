@@ -268,11 +268,11 @@ class BundleProcessor:
             f"CREATE SCHEMA IF NOT EXISTS {schema} LOCATION '{schema_path}'"
         )
         logger.info(create_schema_query)
-        table._spark.sql(create_schema_query)
+        self.pc.spark.sql(create_schema_query)
 
         create_table_query = (
             f"CREATE TABLE IF NOT EXISTS {schema}.{table_name} "
             + f"USING DELTA LOCATION '{table_path}'"
         )
         logger.info(create_table_query)
-        table._spark.sql(create_table_query)
+        self.pc.spark.sql(create_table_query)
