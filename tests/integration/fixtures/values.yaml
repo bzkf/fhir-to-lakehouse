@@ -1,0 +1,49 @@
+stream-processors:
+  enabled: false
+  strimziClusterName: fhir-to-delta-kafka
+  processors:
+    fhir-to-delta:
+      replicaCount: 1
+      metrics:
+        enabled: true
+        serviceMonitor:
+          path: /actuator/prometheus
+          additionalLabels:
+            release: kube-prometheus-stack
+      container:
+        image:
+          registry: ghcr.io
+          repository: bzkf/fhir-to-delta
+          tag: "" # set in CI
+          pullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          privileged: false
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          seccompProfile:
+            type: RuntimeDefault
+        livenessProbe:
+          httpGet:
+            path: /livez
+            port: 8080
+          failureThreshold: 3
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          failureThreshold: 3
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 15
+        env: []

@@ -1,0 +1,15 @@
+apiVersion: v2
+name: fhir-to-delta-tests
+type: application
+description: Dependencies for the Kubernetes integration tests
+deprecated: false
+version: 0.0.0
+appVersion: 0.0.0
+dependencies:
+  - name: strimzi-kafka-operator
+    repository: oci://quay.io/strimzi-helm
+    version: 0.40.0
+  - name: stream-processors
+    repository: oci://ghcr.io/miracum/charts
+    version: 1.6.1
+    condition: stream-processors.enabled
