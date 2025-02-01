@@ -66,8 +66,9 @@ services:
     privileged: false
     entrypoint: ["/bin/bash", "-c"]
     restart: on-failure
-    command: [
-        #"while true; do kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson; sleep 60; done",
+    # "while true; do kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson; sleep 60; done",
+    command:
+      [
         "kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson",
       ]
     volumes:

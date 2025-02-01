@@ -1,5 +1,4 @@
 import os
-import sys
 
 from delta import DeltaTable
 from loguru import logger

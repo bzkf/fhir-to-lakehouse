@@ -11,12 +11,10 @@ from pyspark.sql.types import (
     StructField,
     StructType,
 )
+from testcontainers.minio import MinioContainer
 
 from bundle_processor import BundleProcessor
 from settings import KafkaSettings, Settings, SparkSettings
-
-from testcontainers.minio import MinioContainer
-
 
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
