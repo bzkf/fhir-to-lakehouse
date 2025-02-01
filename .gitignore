@@ -179,3 +179,5 @@ megalinter-reports/
 *.jar
 
 data/synthea/
+
+charts/

@@ -1,0 +1,6 @@
+pytest==8.3.4
+pytest-cov==6.0.0
+testcontainers[minio,k3s]==4.9.1
+kubernetes==32.0.0
+pyhelm3==0.4.0
+pytest-asyncio==0.25.3
