@@ -8,8 +8,8 @@ appVersion: 0.0.0
 dependencies:
   - name: strimzi-kafka-operator
     repository: oci://quay.io/strimzi-helm
-    version: 0.40.0
+    version: 0.45.0
   - name: stream-processors
     repository: oci://ghcr.io/miracum/charts
-    version: 1.6.1
+    version: 1.8.6
     condition: stream-processors.enabled
