@@ -6,11 +6,7 @@ import pytest
 from delta import DeltaTable
 from pathling import PathlingContext
 from pyspark.sql import SparkSession
-from pyspark.sql.types import (
-    BinaryType,
-    StructField,
-    StructType,
-)
+from pyspark.sql.types import BinaryType, StructField, StructType
 from testcontainers.minio import MinioContainer
 
 from bundle_processor import BundleProcessor
