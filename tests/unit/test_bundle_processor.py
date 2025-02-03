@@ -182,9 +182,7 @@ def test_store_tables_in_minio(pathling_fixture):
 
     bp.process_batch(df, 1)
 
-    dt = DeltaTable.forPath(
-        pathling_fixture.spark, "s3a://test/data/Patient.parquet"
-    )
+    dt = DeltaTable.forPath(pathling_fixture.spark, "s3a://test/data/Patient.parquet")
 
     assert dt.toDF().count() == 1
     assert dt.toDF().first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
