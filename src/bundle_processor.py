@@ -127,7 +127,6 @@ class BundleProcessor:
 
             delta_table = (
                 DeltaTable.createIfNotExists(self.pc.spark)
-                .tableName(resource_type)
                 .location(resource_delta_table_path)
                 .addColumns(resource_df.schema)
                 .execute()
