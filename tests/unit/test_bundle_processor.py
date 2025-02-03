@@ -27,25 +27,7 @@ minio.env["MINIO_ROOT_USER"] = "admin"
 minio.env["MINIO_ROOT_PASSWORD"] = "miniopass"
 
 
-delta_spark_builder = (
-    SparkSession.builder.config(
-        "spark.jars.packages",
-        ",".join(
-            [
-                "au.csiro.pathling:library-runtime:7.0.1",
-                "io.delta:delta-spark_2.12:3.2.0",
-                "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.4",
-                "org.apache.hadoop:hadoop-aws:3.3.4",
-            ]
-        ),
-    )
-    .config("spark.databricks.delta.retentionDurationCheck.enabled", "false")
-    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-    .config(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-    )
-)
+delta_spark_builder = ()
 
 
 @pytest.fixture(scope="module")
@@ -58,23 +40,30 @@ def setup_s3(request):
     request.addfinalizer(remove_container)
 
 
+# this currently always depends on the minio container, as a single spark session is shared
+# throughout the pytest run
+# <https://stackoverflow.com/questions/40153728/multiple-sparksessions-in-single-jvm>
 @pytest.fixture
-def pathling_fixture():
-
-    pc = PathlingContext.create(
-        delta_spark_builder.getOrCreate(),
-        enable_extensions=True,
-        enable_delta=True,
-        enable_terminology=False,
-        terminology_server_url="http://localhost/not-a-real-server",
-    )
-    yield pc
-
-
-@pytest.fixture
-def pathling_fixture_with_s3(setup_s3):
+def pathling_fixture(setup_s3):
     spark = (
-        delta_spark_builder.config(
+        SparkSession.builder.config(
+            "spark.jars.packages",
+            ",".join(
+                [
+                    "au.csiro.pathling:library-runtime:7.0.1",
+                    "io.delta:delta-spark_2.12:3.2.0",
+                    "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.4",
+                    "org.apache.hadoop:hadoop-aws:3.3.4",
+                ]
+            ),
+        )
+        .config("spark.databricks.delta.retentionDurationCheck.enabled", "false")
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config(
+            "spark.sql.catalog.spark_catalog",
+            "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+        )
+        .config(
             "spark.hadoop.fs.s3a.path.style.access",
             "true",
         )
@@ -99,7 +88,7 @@ def pathling_fixture_with_s3(setup_s3):
         enable_terminology=False,
         terminology_server_url="http://localhost/not-a-real-server",
     )
-    yield pc
+    return pc
 
 
 def test_with_empty_dataframe_should_not_fail(pathling_fixture):
@@ -168,7 +157,7 @@ def test_delete_afer_insert_should_delete_row(pathling_fixture, tmp_path):
     assert dt.toDF().count() == 0
 
 
-def test_store_tables_in_minio(pathling_fixture_with_s3):
+def test_store_tables_in_minio(pathling_fixture):
     put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
 
     data = {
@@ -179,7 +168,7 @@ def test_store_tables_in_minio(pathling_fixture_with_s3):
         "offset": 0,
     }
 
-    df = pathling_fixture_with_s3.spark.createDataFrame([data])
+    df = pathling_fixture.spark.createDataFrame([data])
 
     settings = Settings(
         delta_database_dir="s3a://test/data",
@@ -189,12 +178,12 @@ def test_store_tables_in_minio(pathling_fixture_with_s3):
         kafka=KafkaSettings(),
     )
 
-    bp = BundleProcessor(pathling_fixture_with_s3, settings=settings)
+    bp = BundleProcessor(pathling_fixture, settings=settings)
 
     bp.process_batch(df, 1)
 
     dt = DeltaTable.forPath(
-        pathling_fixture_with_s3.spark, "s3a://test/data/Patient.parquet"
+        pathling_fixture.spark, "s3a://test/data/Patient.parquet"
     )
 
     assert dt.toDF().count() == 1
