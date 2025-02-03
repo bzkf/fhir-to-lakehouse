@@ -58,7 +58,7 @@ def setup_s3(request):
     request.addfinalizer(remove_container)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def pathling_fixture():
 
     pc = PathlingContext.create(
@@ -71,7 +71,7 @@ def pathling_fixture():
     yield pc
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def pathling_fixture_with_s3(setup_s3):
     spark = (
         delta_spark_builder.config(
