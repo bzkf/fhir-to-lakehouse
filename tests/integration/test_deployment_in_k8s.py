@@ -3,11 +3,9 @@ from pathlib import Path
 
 import pytest
 import yaml
-
-from testcontainers.k3s import K3SContainer
 from kubernetes import client, config
 from pyhelm3 import Client
-
+from testcontainers.k3s import K3SContainer
 
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 

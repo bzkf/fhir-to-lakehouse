@@ -4,17 +4,11 @@ stream-processors:
   processors:
     fhir-to-delta:
       replicaCount: 1
-      metrics:
-        enabled: true
-        serviceMonitor:
-          path: /actuator/prometheus
-          additionalLabels:
-            release: kube-prometheus-stack
       container:
         image:
           registry: ghcr.io
           repository: bzkf/fhir-to-delta
-          tag: "" # set in CI
+          tag: "test" # set in CI
           pullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
@@ -22,28 +16,17 @@ stream-processors:
           capabilities:
             drop:
               - ALL
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           runAsNonRoot: true
-          runAsUser: 65532
-          runAsGroup: 65532
+          runAsUser: 185
+          runAsGroup: 185
           seccompProfile:
             type: RuntimeDefault
-        livenessProbe:
-          httpGet:
-            path: /livez
-            port: 8080
-          failureThreshold: 3
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 15
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 8080
-          failureThreshold: 3
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 15
-        env: []
+        extraVolumeMounts:
+          - name: spark-conf
+            mountPath: /opt/spark/conf
+            readOnly: true
+      extraVolumes:
+        - name: spark-conf
+          configMap:
+            name: "fixtures-spark-defaults-conf"

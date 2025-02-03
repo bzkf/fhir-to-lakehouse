@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-spark-defaults-conf
+data:
+  spark-defaults.conf: |
+    {{ .Files.Get "files/spark-defaults.conf" | nindent 4 }}
