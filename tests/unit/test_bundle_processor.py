@@ -40,9 +40,6 @@ def setup_s3(request):
     request.addfinalizer(remove_container)
 
 
-# this currently always depends on the minio container, as a single spark session is shared
-# throughout the pytest run
-# <https://stackoverflow.com/questions/40153728/multiple-sparksessions-in-single-jvm>
 @pytest.fixture
 def pathling_fixture(setup_s3):
     spark = (
