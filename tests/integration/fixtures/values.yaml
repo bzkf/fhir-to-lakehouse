@@ -22,6 +22,21 @@ stream-processors:
           runAsGroup: 185
           seccompProfile:
             type: RuntimeDefault
+        envDict:
+          SPARK_S3_ENDPOINT: fixtures-minio:9000
+          KAFKA_CHECKPOINT_DIR: s3a://spark-streaming-checkpoints/fhir-to-delta
+          DELTA_DATABASE_DIR: "s3a://fhir/warehouse"
+        env:
+          - name: "AWS_ACCESS_KEY_ID"
+            valueFrom:
+              secretKeyRef:
+                name: "fixtures-minio"
+                key: "root-user"
+          - name: "AWS_SECRET_ACCESS_KEY"
+            valueFrom:
+              secretKeyRef:
+                name: "fixtures-minio"
+                key: "root-password"
         extraVolumeMounts:
           - name: spark-conf
             mountPath: /opt/spark/conf
@@ -30,3 +45,9 @@ stream-processors:
         - name: spark-conf
           configMap:
             name: "fixtures-spark-defaults-conf"
+
+minio:
+  defaultBuckets: "spark-streaming-checkpoints,fhir"
+  auth:
+    rootUser: "admin"
+    rootPassword: "miniopass"

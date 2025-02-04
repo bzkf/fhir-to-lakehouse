@@ -13,3 +13,6 @@ dependencies:
     repository: oci://ghcr.io/miracum/charts
     version: 1.8.6
     condition: stream-processors.enabled
+  - name: minio
+    repository: oci://registry-1.docker.io/bitnamicharts
+    version: 15.0.1
