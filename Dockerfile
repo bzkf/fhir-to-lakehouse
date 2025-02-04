@@ -14,11 +14,11 @@ EOF
 
 USER 185:185
 
-RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=bind,source=requirements.txt,target=requirements.txt \
-    pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt .
 
-COPY . .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ src/
 
 RUN SPARK_INSTALL_PACKAGES_AND_EXIT=1 python3 src/main.py
 
