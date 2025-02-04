@@ -92,6 +92,7 @@ jobs:
       - name: Create KinD cluster
         uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # v1.12.0
         with:
+          cluster_name: kind
           config: tests/integration/kind-config.yaml
 
       - name: Download container image
@@ -103,7 +104,6 @@ jobs:
 
       - name: Load image into KinD
         run: |
-          # vfps api image
           kind load image-archive /tmp/image.tar
 
       - name: Set up Python
