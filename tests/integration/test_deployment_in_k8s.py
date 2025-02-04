@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
-from confluent_kafka import Producer
-from loguru import logger
-from deltalake import DeltaTable
 
+from confluent_kafka import Producer
+from deltalake import DeltaTable
+from loguru import logger
 
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
