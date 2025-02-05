@@ -128,7 +128,7 @@ jobs:
           helm upgrade --install --wait fixtures tests/integration/fixtures/
           helm upgrade --install --wait \
             --set "stream-processors.enabled=true" \
-            --set "stream-processors.processors.fhir-to-delta.container.image.tag=test" \
+            --set "stream-processors.processors.fhir-to-delta.container.image.tag=${IMAGE_TAG}" \
             fixtures tests/integration/fixtures/
 
       - name: Run tests

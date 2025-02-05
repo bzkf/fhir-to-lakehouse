@@ -7,8 +7,8 @@ stream-processors:
       container:
         image:
           registry: ghcr.io
-          repository: bzkf/fhir-to-delta
-          tag: "test" # set in CI
+          repository: bzkf/fhir-to-lakehouse
+          tag: "" # set in CI
           pullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
@@ -51,3 +51,7 @@ minio:
   auth:
     rootUser: "admin"
     rootPassword: "miniopass"
+  service:
+    type: NodePort
+    nodePorts:
+      api: "30900"
