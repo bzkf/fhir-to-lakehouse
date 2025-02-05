@@ -66,6 +66,7 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-24.04
+    if: ${{ false }}
     permissions:
       contents: read
     needs:

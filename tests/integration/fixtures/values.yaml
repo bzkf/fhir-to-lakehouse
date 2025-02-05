@@ -16,6 +16,9 @@ stream-processors:
   processors:
     fhir-to-delta:
       replicaCount: 1
+      kafka:
+        topics:
+          - fhir.msg
       container:
         image:
           registry: ghcr.io

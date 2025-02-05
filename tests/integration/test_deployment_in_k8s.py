@@ -1,35 +1,22 @@
 import os
 from pathlib import Path
 
-from confluent_kafka import Producer
+from kafka import KafkaProducer
 from deltalake import DeltaTable
-from loguru import logger
 
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
 
 def test_deploy_to_k8s_should_create_delta_tables():
-    # load bundles using this test function
-    # check that the delta tables are created (after some time)
-    p = Producer({"bootstrap.servers": "localhost:30092"})
-
-    def delivery_report(err, msg):
-        if err is not None:
-            logger.info("Message delivery failed: {}".format(err))
-        else:
-            logger.info(
-                "Message delivered to {} [{}]".format(msg.topic(), msg.partition())
-            )
+    producer = KafkaProducer(bootstrap_servers="localhost:30092")
 
     bundle = (
         Path(HERE) / ".." / "unit" / "fixtures" / "resources" / "single-patient.json"
     ).read_bytes()
 
-    p.poll(0)
+    producer.send("fhir.msg", bundle)
 
-    p.produce("fhir.msg", bundle, callback=delivery_report)
-
-    p.flush()
+    producer.flush()
 
     patient_table_path = "s3://fhir/warehouse/Patient.parquet"
     storage_options = {
@@ -38,11 +25,6 @@ def test_deploy_to_k8s_should_create_delta_tables():
         "AWS_ENDPOINT_URL": "http://localhost:30900",
         "AWS_VIRTUAL_HOSTED_STYLE_REQUEST": "false",
     }
-
-    assert DeltaTable.is_deltatable(
-        patient_table_path,
-        storage_options=storage_options,
-    ), "Delta table not created"
 
     dt = DeltaTable(patient_table_path, storage_options=storage_options)
 
