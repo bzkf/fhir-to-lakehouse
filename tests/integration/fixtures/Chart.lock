@@ -5,5 +5,8 @@ dependencies:
 - name: stream-processors
   repository: oci://ghcr.io/miracum/charts
   version: 1.8.6
-digest: sha256:7db371d2fbe460911fc872e137c93e8f5af93becc1dba4c97751e2b32c7b9d19
-generated: "2025-02-02T18:13:38.614529983+01:00"
+- name: minio
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 15.0.1
+digest: sha256:0c49908586864ebdccfb41c5809d45de56cc54fde94eeedd0a2f35f259d24f1b
+generated: "2025-02-04T18:53:09.300347922+01:00"
