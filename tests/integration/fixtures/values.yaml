@@ -1,6 +1,18 @@
 stream-processors:
   enabled: false
   strimziClusterName: fhir-to-delta-kafka
+  securityContext:
+    allowPrivilegeEscalation: false
+    privileged: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 185
+    runAsGroup: 185
+    seccompProfile:
+      type: RuntimeDefault
   processors:
     fhir-to-delta:
       replicaCount: 1
@@ -10,18 +22,6 @@ stream-processors:
           repository: bzkf/fhir-to-lakehouse
           tag: "" # set in CI
           pullPolicy: IfNotPresent
-        securityContext:
-          allowPrivilegeEscalation: false
-          privileged: false
-          capabilities:
-            drop:
-              - ALL
-          readOnlyRootFilesystem: false
-          runAsNonRoot: true
-          runAsUser: 185
-          runAsGroup: 185
-          seccompProfile:
-            type: RuntimeDefault
         envDict:
           SPARK_S3_ENDPOINT: fixtures-minio:9000
           KAFKA_CHECKPOINT_DIR: s3a://spark-streaming-checkpoints/fhir-to-delta

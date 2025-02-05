@@ -13,8 +13,6 @@ EOF
 
 COPY requirements.txt .
 
-# RUN pip install --no-cache-dir -r requirements.txt
-
 RUN --mount=type=cache,target=/home/spark/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     python3 -m pip install --no-cache-dir -r requirements.txt
@@ -24,4 +22,5 @@ COPY src/ src/
 USER 185:185
 RUN SPARK_INSTALL_PACKAGES_AND_EXIT=1 python3 src/main.py
 
+WORKDIR /home/spark
 ENTRYPOINT [ "python3", "/opt/fhir-to-delta/src/main.py" ]
