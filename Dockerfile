@@ -11,8 +11,6 @@ mkdir /home/spark
 chown -R spark:spark /home/spark
 EOF
 
-COPY requirements.txt .
-
 RUN --mount=type=cache,target=/home/spark/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     python3 -m pip install --no-cache-dir -r requirements.txt

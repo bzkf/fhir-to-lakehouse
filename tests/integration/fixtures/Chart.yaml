@@ -16,3 +16,7 @@ dependencies:
   - name: minio
     repository: oci://registry-1.docker.io/bitnamicharts
     version: 15.0.1
+  - name: akhq
+    condition: akhq.enabled
+    repository: https://akhq.io/
+    version: 0.25.1

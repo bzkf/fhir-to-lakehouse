@@ -10,7 +10,13 @@ from pyspark.sql.types import BinaryType, StructField, StructType
 from testcontainers.minio import MinioContainer
 
 from bundle_processor import BundleProcessor
-from settings import KafkaSettings, Settings, SparkSettings
+from settings import (
+    DeltaSettings,
+    KafkaSettings,
+    KafkaSslSettings,
+    Settings,
+    SparkSettings,
+)
 
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
@@ -99,8 +105,9 @@ def test_with_empty_dataframe_should_not_fail(pathling_fixture):
     bp = BundleProcessor(
         pathling_fixture,
         settings=Settings(
+            delta=DeltaSettings(),
             spark=SparkSettings(),
-            kafka=KafkaSettings(),
+            kafka=KafkaSettings(ssl=KafkaSslSettings()),
         ),
     )
 
@@ -125,7 +132,8 @@ def test_delete_afer_insert_should_delete_row(pathling_fixture, tmp_path):
     settings = Settings(
         delta_database_dir=d.as_posix(),
         spark=SparkSettings(),
-        kafka=KafkaSettings(),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
     )
 
     bp = BundleProcessor(pathling_fixture, settings=settings)
@@ -172,7 +180,8 @@ def test_store_tables_in_minio(pathling_fixture):
         spark=SparkSettings(
             checkpoint_dir="s3a://test/checkpoint",
         ),
-        kafka=KafkaSettings(),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
     )
 
     bp = BundleProcessor(pathling_fixture, settings=settings)
@@ -202,7 +211,8 @@ def test_vaccuum_and_optimize(pathling_fixture, tmp_path):
     settings = Settings(
         delta_database_dir=d.as_posix(),
         spark=SparkSettings(),
-        kafka=KafkaSettings(),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
     )
 
     bp = BundleProcessor(pathling_fixture, settings=settings)

@@ -100,7 +100,7 @@ pc = PathlingContext.create(
 processor = BundleProcessor(pc, settings)
 
 
-df = (
+reader = (
     pc.spark.readStream.format("kafka")
     .option("kafka.bootstrap.servers", settings.kafka.bootstrap_servers)
     .option("subscribe", settings.kafka.topics)
@@ -111,8 +111,24 @@ df = (
     .option("maxOffsetsPerTrigger", str(settings.kafka.max_offsets_per_trigger))
     .option("minOffsetsPerTrigger", str(settings.kafka.min_offsets_per_trigger))
     .option("maxTriggerDelay", settings.kafka.max_trigger_delay)
-    .load()
 )
+
+if settings.kafka.security_protocol == "SSL":
+    reader = (
+        reader.option("kafka.security.protocol", "SSL")
+        .option("kafka.ssl.truststore.type", settings.kafka.ssl.truststore_type)
+        .option(
+            "kafka.ssl.truststore.location", settings.kafka.ssl.trust_store_location
+        )
+        .option(
+            "kafka.ssl.truststore.password", settings.kafka.ssl.trust_store_password
+        )
+        .option("kafka.ssl.keystore.type", settings.kafka.ssl.keystore_type)
+        .option("kafka.ssl.keystore.location", settings.kafka.ssl.key_store_location)
+        .option("kafka.ssl.keystore.password", settings.kafka.ssl.key_store_password)
+    )
+
+df = reader.load()
 
 # Write the output of a streaming aggregation query into Delta table
 df.writeStream.option("checkpointLocation", settings.spark.checkpoint_dir).foreachBatch(

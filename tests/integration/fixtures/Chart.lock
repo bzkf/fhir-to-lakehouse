@@ -8,5 +8,8 @@ dependencies:
 - name: minio
   repository: oci://registry-1.docker.io/bitnamicharts
   version: 15.0.1
-digest: sha256:0c49908586864ebdccfb41c5809d45de56cc54fde94eeedd0a2f35f259d24f1b
-generated: "2025-02-04T18:53:09.300347922+01:00"
+- name: akhq
+  repository: https://akhq.io/
+  version: 0.25.1
+digest: sha256:31de97e43acce78c1906d543c948b418a87b8f6bb3245b5ebcfc8dd60c224970
+generated: "2025-02-06T21:57:07.506385472+01:00"
