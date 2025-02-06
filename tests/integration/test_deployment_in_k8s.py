@@ -1,24 +1,42 @@
+import hashlib
 import os
+import time
 from pathlib import Path
 
+import polars as pl
 from kafka import KafkaProducer
-from deltalake import DeltaTable
+from loguru import logger
 
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
 
 def test_deploy_to_k8s_should_create_delta_tables():
-    producer = KafkaProducer(bootstrap_servers="localhost:30092")
+    producer = KafkaProducer(
+        bootstrap_servers="localhost:30090",
+    )
 
     bundle = (
-        Path(HERE) / ".." / "unit" / "fixtures" / "resources" / "single-patient.json"
-    ).read_bytes()
+        Path(HERE)
+        / ".."
+        / "unit"
+        / "fixtures"
+        / "resources"
+        / "put-100-patients.ndjson"
+    ).read_text()
 
-    producer.send("fhir.msg", bundle)
+    for line in bundle.splitlines():
+        if line.strip():  # Skip empty lines
+            line_hash = hashlib.sha256(line.encode()).hexdigest().encode()
+            producer.send(
+                topic="fhir.msg",
+                value=line.encode("utf-8"),
+                key=line_hash,
+            )
+    producer.flush(timeout=60)
 
-    producer.flush()
+    logger.info("Sent bundle to Kafka")
 
-    patient_table_path = "s3://fhir/warehouse/Patient.parquet"
+    patient_table_path = "s3://fhir/warehouse/Patient.parquet/"
     storage_options = {
         "AWS_ACCESS_KEY_ID": "admin",
         "AWS_SECRET_ACCESS_KEY": "miniopass",
@@ -26,6 +44,18 @@ def test_deploy_to_k8s_should_create_delta_tables():
         "AWS_VIRTUAL_HOSTED_STYLE_REQUEST": "false",
     }
 
-    dt = DeltaTable(patient_table_path, storage_options=storage_options)
-
-    assert dt.to_pandas().count() == 1, "Delta table not populated"
+    for attempt in range(6):
+        try:
+            df = pl.read_delta(
+                patient_table_path, storage_options=storage_options, version=0
+            )
+            assert df.count() == 1, "Unexpected number of rows in Patient table"
+            break
+        except Exception as e:
+            logger.warning(
+                "Attempt {attempt} failed: {error}", attempt=attempt + 1, error=e
+            )
+            if attempt < 4:  # Don't sleep on last attempt
+                time.sleep(2**attempt)
+            else:
+                raise e

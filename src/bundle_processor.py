@@ -129,6 +129,18 @@ class BundleProcessor:
                 DeltaTable.createIfNotExists(self.pc.spark)
                 .location(resource_delta_table_path)
                 .addColumns(resource_df.schema)
+                .property(
+                    "delta.autoOptimize.autoCompact",
+                    self.settings.delta.auto_optimize_auto_compact,
+                )
+                .property(
+                    "delta.autoOptimize.optimizeWrite",
+                    self.settings.delta.auto_optimize_optimize_write,
+                )
+                .property(
+                    "delta.enableDeletionVectors",
+                    self.settings.delta.enable_deletion_vectors,
+                )
                 .execute()
             )
 
@@ -174,7 +186,7 @@ class BundleProcessor:
                     delta_table, resource_type=resource_type
                 )
 
-            logger.info("Finished processing batch {batch_id}", batch_id=batch_id)
+        logger.info("Finished processing batch {batch_id}", batch_id=batch_id)
 
     def _merge_into_table(
         self, resource_df: DataFrame, resource_type: str, delta_table: DeltaTable

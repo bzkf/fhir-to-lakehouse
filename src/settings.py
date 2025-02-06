@@ -6,12 +6,24 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 
 
 @ts.settings
+class KafkaSslSettings:
+    truststore_type: str = "PKCS12"
+    trust_store_location: str = "/opt/kafka-certs/ca.p12"
+    trust_store_password: str = ts.secret(default="")
+    keystore_type: str = "PKCS12"
+    key_store_location: str = "/opt/kafka-certs/user.p12"
+    key_store_password: str = ts.secret(default="")
+
+
+@ts.settings
 class KafkaSettings:
+    ssl: KafkaSslSettings
     bootstrap_servers: str = "localhost:9094"
     topics: str = "fhir.msg"
     max_offsets_per_trigger: int = 10000
     min_offsets_per_trigger: int = 10000
     max_trigger_delay: str = "15m"
+    security_protocol: str = "PLAINTEXT"
 
 
 @ts.settings
@@ -28,9 +40,17 @@ class SparkSettings:
 
 
 @ts.settings
+class DeltaSettings:
+    auto_optimize_auto_compact: str = "true"
+    auto_optimize_optimize_write: str = "true"
+    enable_deletion_vectors: str = "true"
+
+
+@ts.settings
 class Settings:
     kafka: KafkaSettings
     spark: SparkSettings
+    delta: DeltaSettings
     aws_access_key_id: str = "admin"
     aws_secret_access_key: str = ts.secret(default="miniopass")
     delta_database_dir: str = "s3a://fhir/warehouse"
