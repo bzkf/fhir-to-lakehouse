@@ -3,7 +3,6 @@ import os
 import time
 from pathlib import Path
 
-import polars as pl
 from deltalake import DeltaTable
 from kafka import KafkaProducer
 from loguru import logger
