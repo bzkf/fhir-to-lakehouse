@@ -28,7 +28,7 @@ python src/main.py
 #### Unit Tests
 
 ```sh
-pytest --cov=src tests/integration/
+pytest --cov=src tests/unit/
 ```
 
 #### Integration Tests
@@ -40,4 +40,16 @@ kind create cluster --config=tests/integration/kind-config.yaml
 helm dep up tests/integration/fixtures/
 helm upgrade --install --wait fixtures tests/integration/fixtures/
 helm upgrade --install --wait --set "stream-processors.enabled=true" --set "stream-processors.processors.fhir-to-delta.container.image.tag=test" fixtures tests/integration/fixtures/
+```
+
+To run the integration tests
+
+```sh
+pytest tests/integration
+```
+
+To check the table counts
+
+```sh
+duckdb -no-stdin -init tests/integration/check-counts.sql
 ```

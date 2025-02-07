@@ -55,3 +55,4 @@ spec:
       compression.type: gzip
   entityOperator:
     userOperator: {}
+    topicOperator: {}

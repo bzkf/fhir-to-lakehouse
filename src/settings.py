@@ -21,7 +21,7 @@ class KafkaSettings:
     bootstrap_servers: str = "localhost:9094"
     topics: str = "fhir.msg"
     max_offsets_per_trigger: int = 10000
-    min_offsets_per_trigger: int = 10000
+    min_offsets_per_trigger: int = 1
     max_trigger_delay: str = "15m"
     security_protocol: str = "PLAINTEXT"
 
@@ -43,7 +43,9 @@ class SparkSettings:
 class DeltaSettings:
     auto_optimize_auto_compact: str = "true"
     auto_optimize_optimize_write: str = "true"
-    enable_deletion_vectors: str = "true"
+    checkpoint_interval: str = "100"
+    checkpoint_write_stats_as_json: str = "true"
+    checkpoint_write_stats_as_struct: str = "true"
 
 
 @ts.settings

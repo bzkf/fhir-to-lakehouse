@@ -16,6 +16,7 @@ stream-processors:
   processors:
     fhir-to-delta:
       replicaCount: 1
+      deploymentStrategyType: Recreate
       kafka:
         topics:
           - fhir.msg
@@ -23,13 +24,12 @@ stream-processors:
         image:
           registry: ghcr.io
           repository: bzkf/fhir-to-lakehouse
-          tag: "" # set in CI
+          tag: "test" # set in CI
           pullPolicy: IfNotPresent
         envDict:
           SPARK_S3_ENDPOINT: fixtures-minio:9000
           SPARK_CHECKPOINT_DIR: s3a://spark-streaming-checkpoints/fhir-to-delta
           DELTA_DATABASE_DIR: "s3a://fhir/warehouse"
-          KAFKA_SECURITY_PROTOCOL: SSL
           KAFKA_SSL_TRUSTSTORE_TYPE: PKCS12
           KAFKA_SSL_KEYSTORE_TYPE: PKCS12
         env:
@@ -63,7 +63,7 @@ minio:
       api: "30900"
 
 akhq:
-  enabled: true
+  enabled: false
   configuration:
     akhq:
       connections:

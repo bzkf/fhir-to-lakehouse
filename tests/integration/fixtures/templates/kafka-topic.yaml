@@ -1,0 +1,9 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fhir.msg
+  labels:
+    strimzi.io/cluster: {{ index .Values "stream-processors" "strimziClusterName" }}
+spec:
+  partitions: 3
+  replicas: 1

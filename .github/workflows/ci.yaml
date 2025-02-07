@@ -61,12 +61,11 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: pytest-results
+          name: pytest-unit-tests-results
           path: htmlcov/
 
   integration-tests:
     runs-on: ubuntu-24.04
-    if: ${{ false }}
     permissions:
       contents: read
     needs:
@@ -140,7 +139,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: pytest-results
+          name: pytest-integration-tests-results
           path: htmlcov/
 
       - name: Print cluster logs
