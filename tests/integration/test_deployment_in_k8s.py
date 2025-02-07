@@ -66,6 +66,6 @@ def test_deploy_to_k8s_should_create_delta_tables():
                 "Attempt {attempt} failed: {error}", attempt=attempt + 1, error=e
             )
             if attempt < 4:  # Don't sleep on last attempt
-                time.sleep(2**attempt)
+                time.sleep(3**attempt)
             else:
                 raise e
