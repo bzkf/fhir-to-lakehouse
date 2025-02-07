@@ -138,8 +138,16 @@ class BundleProcessor:
                     self.settings.delta.auto_optimize_optimize_write,
                 )
                 .property(
-                    "delta.enableDeletionVectors",
-                    self.settings.delta.enable_deletion_vectors,
+                    "delta.checkpointInterval",
+                    self.settings.delta.checkpoint_interval,
+                )
+                .property(
+                    "delta.checkpoint.writeStatsAsJson",
+                    self.settings.delta.checkpoint_write_stats_as_json,
+                )
+                .property(
+                    "delta.checkpoint.writeStatsAsStruct",
+                    self.settings.delta.checkpoint_write_stats_as_struct,
                 )
                 .execute()
             )
