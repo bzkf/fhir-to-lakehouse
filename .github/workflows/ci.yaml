@@ -103,6 +103,7 @@ jobs:
           path: /tmp
 
       - name: Load image into KinD
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           kind load image-archive /tmp/image.tar
 
