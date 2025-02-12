@@ -1,7 +1,7 @@
 # kics-scan ignore
 services:
   metastore-db:
-    image: docker.io/bitnami/postgresql:17.2.0-debian-12-r9@sha256:52204f50eef92013879c60581ee5f995a8c0ca70a8bcf579678687c838b522f3
+    image: docker.io/bitnami/postgresql:17.2.0-debian-12-r12@sha256:92b20bf4d9cc329a4c815a3f436dac1fa058e441b1d329b06693d3dee086a309
     ipc: private
     security_opt:
       - "no-new-privileges:true"
@@ -15,7 +15,7 @@ services:
       POSTGRESQL_DATABASE: metastore
 
   hive-metastore:
-    image: ghcr.io/miracum/util-images/hive-metastore:v1.2.0@sha256:d8f99a4a16ede640f184dca9bd84bef84f84b26f41b10eb5c62a57bb796268c8
+    image: ghcr.io/miracum/util-images/hive-metastore:v1.2.2@sha256:e513586300670c3482f817eb35c1f9bc04e802c25933317767d2a27124381560
     ipc: none
     security_opt:
       - "no-new-privileges:true"
