@@ -105,7 +105,7 @@ reader = (
     .option("kafka.bootstrap.servers", settings.kafka.bootstrap_servers)
     .option("subscribe", settings.kafka.topics)
     .option("startingOffsets", "earliest")
-    .option("failOnDataLoss", "true")
+    .option("failOnDataLoss", str(settings.kafka.fail_on_data_loss).lower())
     .option("groupIdPrefix", "fhir-to-lakehouse")
     .option("includeHeaders", "true")
     .option("maxOffsetsPerTrigger", str(settings.kafka.max_offsets_per_trigger))

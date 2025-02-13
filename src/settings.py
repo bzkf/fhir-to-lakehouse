@@ -24,6 +24,7 @@ class KafkaSettings:
     min_offsets_per_trigger: int = 1
     max_trigger_delay: str = "15m"
     security_protocol: str = "PLAINTEXT"
+    fail_on_data_loss: bool = True
 
 
 @ts.settings
