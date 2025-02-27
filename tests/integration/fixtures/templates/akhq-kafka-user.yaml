@@ -1,0 +1,15 @@
+{{- if .Values.akhq.enabled }}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: fixtures-akhq-kafka-user
+  labels:
+    strimzi.io/cluster: {{ index .Values "stream-processors" "strimziClusterName" }}
+  {{- with .Values.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  authentication:
+    type: tls
+{{- end }}

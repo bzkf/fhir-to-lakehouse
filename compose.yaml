@@ -1,8 +1,13 @@
+# kics-scan ignore
 services:
   kafka:
     image: docker.io/apache/kafka-native:3.9.0@sha256:c20b97f0a3990771f52bf7855ccb9ae82ac683a357a101482ba349dfb2ae0cdb
-    ports:
-      - 127.0.0.1:9094:9094
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -15,22 +20,30 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_NUM_PARTITIONS: 12
       KAFKA_MESSAGE_MAX_BYTES: 104857600 # 100MiB
+    ports:
+      - 127.0.0.1:9094:9094
 
   kafbat-ui:
     image: ghcr.io/kafbat/kafka-ui:v1.1.0@sha256:050543568675d5f1c34f6bb62c47720f700cf7baa1a4cf7bb7c38babed2fed7f
-    ports:
-      - 127.0.0.1:8084:8080
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
     environment:
       DYNAMIC_CONFIG_ENABLED: "false"
       KAFKA_CLUSTERS_0_NAME: compose-kafka
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     depends_on:
       - kafka
+    ports:
+      - 127.0.0.1:8084:8080
 
   minio:
-    image: docker.io/bitnami/minio:2024.12.18-debian-12-r0@sha256:cce234b4381a169d80836584d966bb5c82365e5f7f0becfcf2d1cf8c57be754b
+    image: docker.io/bitnami/minio:2025.1.20-debian-12-r0@sha256:4d0c90387e9a946c65a7b29acfc60401980f4aad5e7e156a1ee6efad10cc1ada
     environment:
       MINIO_UPDATE: "off"
       MINIO_CALLHOME_ENABLE: "off"
@@ -45,13 +58,21 @@ services:
 
   mock-data-loader:
     image: docker.io/confluentinc/cp-kafkacat:7.1.15@sha256:273c2022aee0cfc0a181acf1801912c45b0e1fb62785711ab2ca64065d072fc7
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
     entrypoint: ["/bin/bash", "-c"]
     restart: on-failure
+    # "while true; do kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson; sleep 60; done",
     command:
       [
-        "while true; do kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson; sleep 5; done",
+        "kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson",
       ]
     volumes:
       - ./data/bundles.ndjson:/data/bundles.ndjson:ro
     depends_on:
-      - kafka
+      kafka:
+        condition: service_started

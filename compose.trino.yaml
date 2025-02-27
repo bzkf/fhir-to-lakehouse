@@ -1,0 +1,60 @@
+# kics-scan ignore
+services:
+  metastore-db:
+    image: docker.io/bitnami/postgresql:17.2.0-debian-12-r9@sha256:52204f50eef92013879c60581ee5f995a8c0ca70a8bcf579678687c838b522f3
+    ipc: private
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: unless-stopped
+    environment:
+      POSTGRESQL_USERNAME: hive
+      POSTGRESQL_PASSWORD: hive
+      POSTGRESQL_DATABASE: metastore
+
+  hive-metastore:
+    image: ghcr.io/miracum/util-images/hive-metastore:v1.2.0@sha256:d8f99a4a16ede640f184dca9bd84bef84f84b26f41b10eb5c62a57bb796268c8
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      SERVICE_OPTS: |
+        -Djavax.jdo.option.ConnectionUserName=hive
+        -Djavax.jdo.option.ConnectionPassword=hive
+      AWS_ACCESS_KEY_ID: "admin"
+      AWS_SECRET_ACCESS_KEY: "miniopass"
+      AWS_DEFAULT_REGION: "eu-central-1"
+    volumes:
+      - $PWD/hack/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
+    depends_on:
+      metastore-db:
+        condition: service_started
+
+  trino:
+    image: docker.io/trinodb/trino:470@sha256:a591436ddc20cef15a4424704423326828591727b0e7c40c6ea4165d4564df67
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: unless-stopped
+    environment:
+      AWS_ACCESS_KEY_ID: "admin"
+      AWS_SECRET_ACCESS_KEY: "miniopass"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - $PWD/hack/trino/etc:/usr/lib/trino/etc:ro
+      - $PWD/hack/trino/catalog:/etc/trino/catalog:ro
+    depends_on:
+      - hive-metastore
+      - minio

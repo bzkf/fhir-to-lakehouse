@@ -1,0 +1,130 @@
+stream-processors:
+  enabled: false
+  strimziClusterName: fhir-to-delta-kafka
+  securityContext:
+    allowPrivilegeEscalation: false
+    privileged: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 185
+    runAsGroup: 185
+    seccompProfile:
+      type: RuntimeDefault
+  processors:
+    fhir-to-delta:
+      replicaCount: 1
+      deploymentStrategyType: Recreate
+      kafka:
+        topics:
+          - fhir.msg
+      container:
+        image:
+          registry: ghcr.io
+          repository: bzkf/fhir-to-lakehouse
+          tag: "test" # set in CI
+          pullPolicy: IfNotPresent
+        envDict:
+          SPARK_S3_ENDPOINT: fixtures-minio:9000
+          SPARK_CHECKPOINT_DIR: s3a://spark-streaming-checkpoints/fhir-to-delta
+          DELTA_DATABASE_DIR: "s3a://fhir/warehouse"
+          KAFKA_SSL_TRUSTSTORE_TYPE: PKCS12
+          KAFKA_SSL_KEYSTORE_TYPE: PKCS12
+        env:
+          - name: "AWS_ACCESS_KEY_ID"
+            valueFrom:
+              secretKeyRef:
+                name: "fixtures-minio"
+                key: "root-user"
+          - name: "AWS_SECRET_ACCESS_KEY"
+            valueFrom:
+              secretKeyRef:
+                name: "fixtures-minio"
+                key: "root-password"
+        extraVolumeMounts:
+          - name: spark-conf
+            mountPath: /opt/spark/conf
+            readOnly: true
+      extraVolumes:
+        - name: spark-conf
+          configMap:
+            name: "fixtures-spark-defaults-conf"
+
+minio:
+  defaultBuckets: "spark-streaming-checkpoints,fhir"
+  auth:
+    rootUser: "admin"
+    rootPassword: "miniopass"
+  service:
+    type: NodePort
+    nodePorts:
+      api: "30900"
+
+akhq:
+  enabled: false
+  configuration:
+    akhq:
+      connections:
+        fhir-to-delta-kafka:
+          properties:
+            # -- the Kafka bootstrap server. Needs to be changed if the
+            # chart release name is changed from the default `bzkf-dizbox`
+            bootstrap.servers: "fhir-to-delta-kafka-kafka-bootstrap:9093"
+            security.protocol: SSL
+            ssl.truststore.location: /opt/kafka-certs/ca.p12
+            ssl.truststore.password: ${SSL_TRUST_STORE_PASSWORD}
+            ssl.keystore.location: /opt/kafka-certs/user.p12
+            ssl.keystore.password: ${SSL_KEY_STORE_PASSWORD}
+  # @ignore
+  extraEnv:
+    - name: SSL_KEY_STORE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: fixtures-akhq-kafka-user
+          key: user.password
+    - name: SSL_TRUST_STORE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: fhir-to-delta-kafka-cluster-ca-cert
+          key: ca.password
+    - name: JAVA_OPTS
+      value: "-Duser.timezone=Europe/Berlin"
+  # @ignore
+  extraVolumes:
+    - name: kafka-certs
+      projected:
+        sources:
+          - secret:
+              name: fhir-to-delta-kafka-cluster-ca-cert
+              items:
+                - key: ca.crt
+                  path: ca.crt
+                - key: ca.p12
+                  path: ca.p12
+          - secret:
+              name: fixtures-akhq-kafka-user
+              items:
+                - key: user.crt
+                  path: user.crt
+                - key: user.p12
+                  path: user.p12
+                - key: user.key
+                  path: user.key
+  extraVolumeMounts:
+    - name: kafka-certs
+      mountPath: "/opt/kafka-certs"
+      readOnly: true
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    privileged: false
+    capabilities:
+      drop:
+        - ALL
+    runAsNonRoot: true
+    runAsUser: 65534
+    runAsGroup: 65534
+    readOnlyRootFilesystem: false
+    seccompProfile:
+      type: RuntimeDefault
