@@ -38,6 +38,7 @@ class SparkSettings:
     driver_memory: str = "4g"
     upkeep_interval: int = 50
     streaming_processing_time: str = "0 seconds"
+    output_mode: str = "append"
 
 
 @ts.settings
@@ -61,6 +62,13 @@ class Settings:
     metrics_port: int = 8000
     metrics_addr: str = "127.0.0.1"
     metastore_url: str = ""
+    resource_types_to_process_in_parallel: list[str] = [
+        "Patient",
+        "Observation",
+        "Encounter",
+        "Condition",
+        "Procedure",
+    ]
 
 
 settings = ts.load(Settings, appname="fhir_to_lakehouse", env_prefix="")

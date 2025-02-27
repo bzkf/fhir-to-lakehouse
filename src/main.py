@@ -7,6 +7,8 @@ from opentelemetry.sdk.metrics import MeterProvider
 from pathling import PathlingContext
 from prometheus_client import start_http_server
 from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
+from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
 from bundle_processor import BundleProcessor
 from settings import settings
@@ -130,11 +132,68 @@ if settings.kafka.security_protocol == "SSL":
 
 df = reader.load()
 
-# Write the output of a streaming aggregation query into Delta table
-df.writeStream.option("checkpointLocation", settings.spark.checkpoint_dir).foreachBatch(
-    processor.process_batch
-).outputMode("update").queryName("fhir_bundles_to_delta_tables").trigger(
-    processingTime=settings.spark.streaming_processing_time
-).start()
+fhir_bundle_schema = StructType(
+    [
+        StructField(
+            "entry",
+            ArrayType(
+                StructType(
+                    [
+                        StructField("resource", StringType(), True),
+                        StructField(
+                            "request",
+                            StructType(
+                                [
+                                    StructField("method", StringType(), True),
+                                    StructField("url", StringType(), True),
+                                ]
+                            ),
+                        ),
+                    ]
+                )
+            ),
+            True,
+        ),
+    ]
+)
+
+df_result = (
+    df.withColumn("bundle", F.col("value").cast("string"))
+    .withColumn("parsed_bundle", F.from_json("bundle", fhir_bundle_schema))
+    .withColumn("entry", F.explode("parsed_bundle.entry"))
+    .withColumn("resource", F.col("entry.resource"))
+    .withColumn("request_method", F.col("entry.request.method"))
+    .withColumn("request_url", F.col("entry.request.url"))
+    .withColumn("request_url_split", F.split("request_url", "/"))
+    .withColumn("resource_type", F.col("request_url_split").getItem(0))
+    .withColumn("request_resource_id", F.col("request_url_split").getItem(1))
+)
+
+for resource_type in settings.resource_types_to_process_in_parallel:
+    filtered_df = df_result.filter(F.col("resource_type") == resource_type)
+
+    (
+        filtered_df.writeStream.outputMode(settings.spark.output_mode)
+        .option(
+            "checkpointLocation", settings.spark.checkpoint_dir + f"/{resource_type}"
+        )
+        .queryName(f"process_{resource_type}")
+        .foreachBatch(processor.process_batch)
+        .trigger(processingTime=settings.spark.streaming_processing_time)
+        .start()
+    )
+
+default_df = df_result.filter(
+    ~F.col("resource_type").isin(settings.resource_types_to_process_in_parallel)
+)
+
+(
+    default_df.writeStream.outputMode(settings.spark.output_mode)
+    .option("checkpointLocation", settings.spark.checkpoint_dir + "/default")
+    .queryName("process_default")
+    .foreachBatch(processor.process_batch)
+    .trigger(processingTime=settings.spark.streaming_processing_time)
+    .start()
+)
 
 spark.streams.awaitAnyTermination()
