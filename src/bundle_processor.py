@@ -31,6 +31,46 @@ class BundleProcessor:
         self.pc = pc
         self.settings = settings
 
+    def prepare_stream(self, df: DataFrame):
+        fhir_bundle_schema = StructType(
+            [
+                StructField(
+                    "entry",
+                    ArrayType(
+                        StructType(
+                            [
+                                StructField("resource", StringType(), True),
+                                StructField(
+                                    "request",
+                                    StructType(
+                                        [
+                                            StructField("method", StringType(), True),
+                                            StructField("url", StringType(), True),
+                                        ]
+                                    ),
+                                ),
+                            ]
+                        )
+                    ),
+                    True,
+                ),
+            ]
+        )
+
+        df_result = (
+            df.withColumn("bundle", F.col("value").cast("string"))
+            .withColumn("parsed_bundle", F.from_json("bundle", fhir_bundle_schema))
+            .withColumn("entry", F.explode("parsed_bundle.entry"))
+            .withColumn("resource", F.col("entry.resource"))
+            .withColumn("request_method", F.col("entry.request.method"))
+            .withColumn("request_url", F.col("entry.request.url"))
+            .withColumn("request_url_split", F.split("request_url", "/"))
+            .withColumn("resource_type", F.col("request_url_split").getItem(0))
+            .withColumn("request_resource_id", F.col("request_url_split").getItem(1))
+        )
+
+        return df_result
+
     def process_batch(self, micro_batch_df: DataFrame, batch_id: int):
         # might not be super efficient to log the batch size
         logger.info(

@@ -8,7 +8,6 @@ from pathling import PathlingContext
 from prometheus_client import start_http_server
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
 from bundle_processor import BundleProcessor
 from settings import settings
@@ -132,42 +131,7 @@ if settings.kafka.security_protocol == "SSL":
 
 df = reader.load()
 
-fhir_bundle_schema = StructType(
-    [
-        StructField(
-            "entry",
-            ArrayType(
-                StructType(
-                    [
-                        StructField("resource", StringType(), True),
-                        StructField(
-                            "request",
-                            StructType(
-                                [
-                                    StructField("method", StringType(), True),
-                                    StructField("url", StringType(), True),
-                                ]
-                            ),
-                        ),
-                    ]
-                )
-            ),
-            True,
-        ),
-    ]
-)
-
-df_result = (
-    df.withColumn("bundle", F.col("value").cast("string"))
-    .withColumn("parsed_bundle", F.from_json("bundle", fhir_bundle_schema))
-    .withColumn("entry", F.explode("parsed_bundle.entry"))
-    .withColumn("resource", F.col("entry.resource"))
-    .withColumn("request_method", F.col("entry.request.method"))
-    .withColumn("request_url", F.col("entry.request.url"))
-    .withColumn("request_url_split", F.split("request_url", "/"))
-    .withColumn("resource_type", F.col("request_url_split").getItem(0))
-    .withColumn("request_resource_id", F.col("request_url_split").getItem(1))
-)
+df_result = processor.prepare_stream(df)
 
 for resource_type in settings.resource_types_to_process_in_parallel:
     filtered_df = df_result.filter(F.col("resource_type") == resource_type)
