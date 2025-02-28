@@ -25,36 +25,51 @@ resources_processed_counter = meter.create_counter(
     description="Total number of resources written or deleted from Delta Tables",
 )
 
-fhir_bundle_schema = StructType(
-    [
-        StructField(
-            "entry",
-            ArrayType(
-                StructType(
-                    [
-                        StructField("resource", StringType(), True),
-                        StructField(
-                            "request",
-                            StructType(
-                                [
-                                    StructField("method", StringType(), True),
-                                    StructField("url", StringType(), True),
-                                ]
-                            ),
-                        ),
-                    ]
-                )
-            ),
-            True,
-        ),
-    ]
-)
-
 
 class BundleProcessor:
     def __init__(self, pc: PathlingContext, settings: Settings):
         self.pc = pc
         self.settings = settings
+
+    def prepare_stream(self, df: DataFrame):
+        fhir_bundle_schema = StructType(
+            [
+                StructField(
+                    "entry",
+                    ArrayType(
+                        StructType(
+                            [
+                                StructField("resource", StringType(), True),
+                                StructField(
+                                    "request",
+                                    StructType(
+                                        [
+                                            StructField("method", StringType(), True),
+                                            StructField("url", StringType(), True),
+                                        ]
+                                    ),
+                                ),
+                            ]
+                        )
+                    ),
+                    True,
+                ),
+            ]
+        )
+
+        df_result = (
+            df.withColumn("bundle", F.col("value").cast("string"))
+            .withColumn("parsed_bundle", F.from_json("bundle", fhir_bundle_schema))
+            .withColumn("entry", F.explode("parsed_bundle.entry"))
+            .withColumn("resource", F.col("entry.resource"))
+            .withColumn("request_method", F.col("entry.request.method"))
+            .withColumn("request_url", F.col("entry.request.url"))
+            .withColumn("request_url_split", F.split("request_url", "/"))
+            .withColumn("resource_type", F.col("request_url_split").getItem(0))
+            .withColumn("request_resource_id", F.col("request_url_split").getItem(1))
+        )
+
+        return df_result
 
     def process_batch(self, micro_batch_df: DataFrame, batch_id: int):
         # might not be super efficient to log the batch size
@@ -68,33 +83,9 @@ class BundleProcessor:
             logger.info("Batch is empty, skipping")
             return
 
-        micro_batch_df = micro_batch_df.withColumn(
-            "bundle", micro_batch_df.value.cast("string")
-        )
-
-        parsed = micro_batch_df.withColumn(
-            "parsed_bundle", F.from_json("bundle", fhir_bundle_schema)
-        )
-
-        df_exploded = parsed.withColumn(
-            "entry",
-            F.explode(F.col("parsed_bundle.entry")),
-        )
-
-        df_result = (
-            df_exploded.withColumn("resource", F.col("entry.resource"))
-            .withColumn("request_method", F.col("entry.request.method"))
-            .withColumn("request_url", F.col("entry.request.url"))
-            .withColumn("request_url_split", F.split("entry.request.url", "/"))
-        )
-
-        df_result = df_result.withColumn(
-            "resource_type", df_result["request_url_split"].getItem(0)
-        ).withColumn("request_resource_id", df_result["request_url_split"].getItem(1))
-
         resource_types_in_batch = [
             row["resource_type"]
-            for row in df_result.select("resource_type").distinct().collect()
+            for row in micro_batch_df.select("resource_type").distinct().collect()
         ]
 
         logger.info(
@@ -102,13 +93,14 @@ class BundleProcessor:
             resource_types_in_batch=resource_types_in_batch,
         )
 
-        # TODO: find a way to run this in parallel per resource type
-        #       - order, then partition by resource type (2 consecutive foreachBatch)
+        # for all types set in `resource_types_to_process_in_parallel`, there
+        # should only ever be one resource_type in the batch.
+        # In the default case, the batch may contain multiple resource types.
         for resource_type in resource_types_in_batch:
             # TODO: double-check if the sorting here is correct
 
             put_df = (
-                df_result.filter(
+                micro_batch_df.filter(
                     f"resource_type = '{resource_type}' and request_method = 'PUT'"
                 )
                 .sort(["timestamp", "partition", "offset"], ascending=False)
@@ -174,7 +166,7 @@ class BundleProcessor:
                 self._merge_into_table(resource_df, resource_type, delta_table)
 
             delete_df = (
-                df_result.filter(
+                micro_batch_df.filter(
                     f"resource_type = '{resource_type}' and request_method = 'DELETE'"
                 )
                 .sort(["timestamp", "partition", "offset"], ascending=False)

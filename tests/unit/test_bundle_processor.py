@@ -138,6 +138,8 @@ def test_delete_afer_insert_should_delete_row(pathling_fixture, tmp_path):
 
     bp = BundleProcessor(pathling_fixture, settings=settings)
 
+    df = bp.prepare_stream(df)
+
     bp.process_batch(df, 1)
 
     dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
@@ -157,6 +159,8 @@ def test_delete_afer_insert_should_delete_row(pathling_fixture, tmp_path):
 
     df = pathling_fixture.spark.createDataFrame([data])
 
+    df = bp.prepare_stream(df)
+
     bp.process_batch(df, 2)
 
     assert dt.toDF().count() == 0
@@ -164,6 +168,15 @@ def test_delete_afer_insert_should_delete_row(pathling_fixture, tmp_path):
 
 def test_store_tables_in_minio(pathling_fixture):
     put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
+
+    settings = Settings(
+        delta_database_dir="s3a://test/data",
+        spark=SparkSettings(
+            checkpoint_dir="s3a://test/checkpoint",
+        ),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+    )
 
     data = {
         "key": "key",
@@ -175,16 +188,9 @@ def test_store_tables_in_minio(pathling_fixture):
 
     df = pathling_fixture.spark.createDataFrame([data])
 
-    settings = Settings(
-        delta_database_dir="s3a://test/data",
-        spark=SparkSettings(
-            checkpoint_dir="s3a://test/checkpoint",
-        ),
-        delta=DeltaSettings(),
-        kafka=KafkaSettings(ssl=KafkaSslSettings()),
-    )
-
     bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
 
     bp.process_batch(df, 1)
 
@@ -216,6 +222,8 @@ def test_vaccuum_and_optimize(pathling_fixture, tmp_path):
     )
 
     bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
 
     # batch_id of 0 already triggers the default upkeep interval
     bp.process_batch(df, 0)

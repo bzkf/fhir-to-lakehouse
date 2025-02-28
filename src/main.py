@@ -7,6 +7,7 @@ from opentelemetry.sdk.metrics import MeterProvider
 from pathling import PathlingContext
 from prometheus_client import start_http_server
 from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 
 from bundle_processor import BundleProcessor
 from settings import settings
@@ -130,11 +131,33 @@ if settings.kafka.security_protocol == "SSL":
 
 df = reader.load()
 
-# Write the output of a streaming aggregation query into Delta table
-df.writeStream.option("checkpointLocation", settings.spark.checkpoint_dir).foreachBatch(
-    processor.process_batch
-).outputMode("update").queryName("fhir_bundles_to_delta_tables").trigger(
-    processingTime=settings.spark.streaming_processing_time
-).start()
+df_result = processor.prepare_stream(df)
+
+for resource_type in settings.resource_types_to_process_in_parallel:
+    filtered_df = df_result.filter(F.col("resource_type") == resource_type)
+
+    (
+        filtered_df.writeStream.outputMode(settings.spark.output_mode)
+        .option(
+            "checkpointLocation", settings.spark.checkpoint_dir + f"/{resource_type}"
+        )
+        .queryName(f"process_{resource_type}")
+        .foreachBatch(processor.process_batch)
+        .trigger(processingTime=settings.spark.streaming_processing_time)
+        .start()
+    )
+
+default_df = df_result.filter(
+    ~F.col("resource_type").isin(settings.resource_types_to_process_in_parallel)
+)
+
+(
+    default_df.writeStream.outputMode(settings.spark.output_mode)
+    .option("checkpointLocation", settings.spark.checkpoint_dir + "/default")
+    .queryName("process_default")
+    .foreachBatch(processor.process_batch)
+    .trigger(processingTime=settings.spark.streaming_processing_time)
+    .start()
+)
 
 spark.streams.awaitAnyTermination()
