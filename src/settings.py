@@ -71,4 +71,4 @@ class Settings:
     ]
 
 
-settings = ts.load(Settings, appname="fhir_to_lakehouse", env_prefix="")
+settings = ts.load(Settings, appname="fhir-to-lakehouse", env_prefix="")
