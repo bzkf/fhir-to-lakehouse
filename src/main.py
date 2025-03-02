@@ -20,7 +20,6 @@ reader = PrometheusMetricReader()
 # Meter is responsible for creating and recording metrics
 set_meter_provider(MeterProvider(metric_readers=[reader]))
 
-
 # other config can be set via $SPARK_HOME/conf/spark-defaults.conf,
 # e.g. compression type.
 spark_config = (
@@ -101,6 +100,12 @@ pc = PathlingContext.create(
 processor = BundleProcessor(pc, settings)
 
 
+# for more control about resource processing per topic,
+# we could allow for the creation of multiple readers and filters.
+# This could help with load-balancing the resource processing,
+# since it currently seems like topics with a lot of messages tend
+# to starve processing from topics with fewer messages, e.g.
+# Patient vs Observation topics.
 reader = (
     pc.spark.readStream.format("kafka")
     .option("kafka.bootstrap.servers", settings.kafka.bootstrap_servers)
