@@ -12,6 +12,21 @@ from pyspark.sql import functions as F
 from bundle_processor import BundleProcessor
 from settings import settings
 
+
+def formatter(record) -> str:
+    return "".join(
+        (
+            "<green>{time}</green> ",
+            "<level>{level:<8s}</level> [{file}:{line}] | <level>{message}</level> ",
+            "<cyan>{extra}</cyan>" if record["extra"] else "",
+            "\n{exception}",
+        )
+    )
+
+
+logger.remove(0)
+logger.add(sys.stdout, format=formatter, diagnose=True, backtrace=True, colorize=True)
+
 logger.info("Settings: {settings}", settings=settings)
 
 start_http_server(port=settings.metrics_port, addr=settings.metrics_addr)
@@ -164,5 +179,7 @@ default_df = df_result.filter(
     .trigger(processingTime=settings.spark.streaming_processing_time)
     .start()
 )
+
+logger.info("Initialized streams. Waiting for termination.")
 
 spark.streams.awaitAnyTermination()
