@@ -72,121 +72,124 @@ class BundleProcessor:
         return df_result
 
     def process_batch(self, micro_batch_df: DataFrame, batch_id: int):
-        # might not be super efficient to log the batch size
-        logger.info(
-            "Processing batch {batch_id} containing {batch_size} rows",
-            batch_id=batch_id,
-            batch_size=micro_batch_df.count(),
-        )
-
-        if micro_batch_df.isEmpty():
-            logger.info("Batch is empty, skipping")
-            return
-
-        resource_types_in_batch = [
-            row["resource_type"]
-            for row in micro_batch_df.select("resource_type").distinct().collect()
-        ]
-
-        logger.info(
-            "Resource types in batch: {resource_types_in_batch}",
-            resource_types_in_batch=resource_types_in_batch,
-        )
-
-        # for all types set in `resource_types_to_process_in_parallel`, there
-        # should only ever be one resource_type in the batch.
-        # In the default case, the batch may contain multiple resource types.
-        for resource_type in resource_types_in_batch:
-            # TODO: double-check if the sorting here is correct
-
-            put_df = (
-                micro_batch_df.filter(
-                    f"resource_type = '{resource_type}' and request_method = 'PUT'"
-                )
-                .sort(["timestamp", "partition", "offset"], ascending=False)
-                .drop_duplicates(["request_url"])
+        with logger.contextualize(batch_id=batch_id):
+            # might not be super efficient to log the batch size
+            logger.info(
+                "Processing batch {batch_id} containing {batch_size} rows",
+                batch_id=batch_id,
+                batch_size=micro_batch_df.count(),
             )
 
-            resource_df = self.pc.encode(
-                put_df,
-                resource_type,
-                column="resource",
-            )
+            if micro_batch_df.isEmpty():
+                logger.info("Batch is empty, skipping")
+                return
 
-            resource_delta_table_path = os.path.join(
-                self.settings.delta_database_dir, f"{resource_type}.parquet"
-            )
-
-            delta_table = (
-                DeltaTable.createIfNotExists(self.pc.spark)
-                .location(resource_delta_table_path)
-                .addColumns(resource_df.schema)
-                .property(
-                    "delta.autoOptimize.autoCompact",
-                    self.settings.delta.auto_optimize_auto_compact,
-                )
-                .property(
-                    "delta.autoOptimize.optimizeWrite",
-                    self.settings.delta.auto_optimize_optimize_write,
-                )
-                .property(
-                    "delta.checkpointInterval",
-                    self.settings.delta.checkpoint_interval,
-                )
-                .property(
-                    "delta.checkpoint.writeStatsAsJson",
-                    self.settings.delta.checkpoint_write_stats_as_json,
-                )
-                .property(
-                    "delta.checkpoint.writeStatsAsStruct",
-                    self.settings.delta.checkpoint_write_stats_as_struct,
-                )
-                .execute()
-            )
+            resource_types_in_batch = [
+                row["resource_type"]
+                for row in micro_batch_df.select("resource_type").distinct().collect()
+            ]
 
             logger.info(
-                "Table details: {details}",
-                details=delta_table.detail().toJSON().collect(),
+                "Resource types in batch: {resource_types_in_batch}",
+                resource_types_in_batch=resource_types_in_batch,
             )
 
-            # XXX: not necessary for every batch...
-            if self.settings.metastore_url:
-                with MeasureElapsed(
-                    delta_operations_timer,
-                    {"operation": "register", "resource_type": resource_type},
-                ):
-                    self._register_table_in_metastore(
-                        delta_table, resource_delta_table_path
-                    )
+            # for all types set in `resource_types_to_process_in_parallel`, there
+            # should only ever be one resource_type in the batch.
+            # In the default case, the batch may contain multiple resource types.
+            for resource_type in resource_types_in_batch:
+                # TODO: double-check if the sorting here is correct
+                resource_df = micro_batch_df.filter(
+                    f"resource_type = '{resource_type}'"
+                ).sort(["timestamp", "partition", "offset"], ascending=False)
 
+                with logger.contextualize(resource_type=resource_type):
+                    self._process_df_of_single_resource_type(
+                        resource_df, resource_type, batch_id
+                    )
+                    logger.info("Finished processing resource batch")
+
+            logger.info("Finished processing entire batch")
+
+    def _process_df_of_single_resource_type(
+        self, single_resource_type_df: DataFrame, resource_type: str, batch_id: int
+    ):
+        put_df = single_resource_type_df.filter(
+            "request_method = 'PUT'"
+        ).drop_duplicates(["request_url"])
+
+        resource_df = self.pc.encode(
+            put_df,
+            resource_type,
+            column="resource",
+        )
+
+        resource_delta_table_path = os.path.join(
+            self.settings.delta_database_dir, f"{resource_type}.parquet"
+        )
+
+        delta_table = (
+            DeltaTable.createIfNotExists(self.pc.spark)
+            .location(resource_delta_table_path)
+            .addColumns(resource_df.schema)
+            .property(
+                "delta.autoOptimize.autoCompact",
+                self.settings.delta.auto_optimize_auto_compact,
+            )
+            .property(
+                "delta.autoOptimize.optimizeWrite",
+                self.settings.delta.auto_optimize_optimize_write,
+            )
+            .property(
+                "delta.checkpointInterval",
+                self.settings.delta.checkpoint_interval,
+            )
+            .property(
+                "delta.checkpoint.writeStatsAsJson",
+                self.settings.delta.checkpoint_write_stats_as_json,
+            )
+            .property(
+                "delta.checkpoint.writeStatsAsStruct",
+                self.settings.delta.checkpoint_write_stats_as_struct,
+            )
+            .execute()
+        )
+
+        logger.info(
+            "Table details: {details}",
+            details=delta_table.detail().toJSON().collect(),
+        )
+
+        # XXX: not necessary for every batch...
+        if self.settings.metastore_url:
             with MeasureElapsed(
                 delta_operations_timer,
-                {"operation": "merge", "resource_type": resource_type},
+                {"operation": "register", "resource_type": resource_type},
             ):
-                self._merge_into_table(resource_df, resource_type, delta_table)
-
-            delete_df = (
-                micro_batch_df.filter(
-                    f"resource_type = '{resource_type}' and request_method = 'DELETE'"
-                )
-                .sort(["timestamp", "partition", "offset"], ascending=False)
-                .drop_duplicates(["request_url"])
-            )
-
-            if delete_df.count() > 0:
-                with MeasureElapsed(
-                    delta_operations_timer,
-                    {"operation": "delete", "resource_type": resource_type},
-                ):
-                    self._delete_from_table(delete_df, resource_type, delta_table)
-
-            # TODO: should vacuum all tables, not just the ones in the batch
-            if batch_id % self.settings.spark.upkeep_interval == 0:
-                self._optimize_and_vacuum_table(
-                    delta_table, resource_type=resource_type
+                self._register_table_in_metastore(
+                    delta_table, resource_delta_table_path
                 )
 
-        logger.info("Finished processing batch {batch_id}", batch_id=batch_id)
+        with MeasureElapsed(
+            delta_operations_timer,
+            {"operation": "merge", "resource_type": resource_type},
+        ):
+            self._merge_into_table(resource_df, resource_type, delta_table)
+
+        delete_df = single_resource_type_df.filter(
+            "request_method = 'DELETE'"
+        ).drop_duplicates(["request_url"])
+
+        if delete_df.count() > 0:
+            with MeasureElapsed(
+                delta_operations_timer,
+                {"operation": "delete", "resource_type": resource_type},
+            ):
+                self._delete_from_table(delete_df, resource_type, delta_table)
+
+        # TODO: should vacuum all tables, not just the ones in the batch
+        if batch_id % self.settings.spark.upkeep_interval == 0:
+            self._optimize_and_vacuum_table(delta_table, resource_type=resource_type)
 
     def _merge_into_table(
         self, resource_df: DataFrame, resource_type: str, delta_table: DeltaTable
