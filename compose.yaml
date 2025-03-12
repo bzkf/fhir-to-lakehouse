@@ -43,7 +43,7 @@ services:
       - 127.0.0.1:8084:8080
 
   minio:
-    image: docker.io/bitnami/minio:2025.1.20-debian-12-r0@sha256:4d0c90387e9a946c65a7b29acfc60401980f4aad5e7e156a1ee6efad10cc1ada
+    image: docker.io/bitnami/minio:2025.3.12-debian-12-r0@sha256:ba9f3b4b0b008de80b7d1d7a26c336fed3141ddf47788b7a790fc66292132e21
     environment:
       MINIO_UPDATE: "off"
       MINIO_CALLHOME_ENABLE: "off"
