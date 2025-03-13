@@ -16,4 +16,8 @@ class MeasureElapsed:
     def __exit__(self, type, value, traceback):
         self.time = time.perf_counter() - self.start
         self.histogram.record(self.time, self.attributes)
-        logger.info("Elapsed time: {time}", time=self.time)
+        logger.info(
+            "Elapsed time: {elapsed_seconds}",
+            elapsed_seconds=self.time,
+            **self.attributes
+        )
