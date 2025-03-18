@@ -44,9 +44,9 @@ spark_config = (
         "spark.jars.packages",
         ",".join(
             [
-                "au.csiro.pathling:library-runtime:7.0.1",
-                "io.delta:delta-spark_2.12:3.2.0",
-                "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.4",
+                "au.csiro.pathling:library-runtime:7.2.0",
+                "io.delta:delta-spark_2.12:3.3.0",
+                "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5",
                 "org.apache.hadoop:hadoop-aws:3.3.4",
             ]
         ),
