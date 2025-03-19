@@ -152,6 +152,7 @@ class BundleProcessor:
                 "delta.checkpoint.writeStatsAsStruct",
                 self.settings.delta.checkpoint_write_stats_as_struct,
             )
+            .clusterBy("id")
             .execute()
         )
 
