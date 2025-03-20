@@ -1,3 +1,4 @@
+import pprint
 import sys
 
 from loguru import logger
@@ -27,7 +28,7 @@ def formatter(record) -> str:
 logger.remove(0)
 logger.add(sys.stdout, format=formatter, diagnose=True, backtrace=True, colorize=True)
 
-logger.info("Settings: {settings}", settings=settings)
+logger.info("Settings: {settings}", settings=pprint.pformat(settings))
 
 start_http_server(port=settings.metrics_port, addr=settings.metrics_addr)
 
@@ -44,9 +45,9 @@ spark_config = (
         "spark.jars.packages",
         ",".join(
             [
-                "au.csiro.pathling:library-runtime:7.0.1",
-                "io.delta:delta-spark_2.12:3.2.0",
-                "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.4",
+                "au.csiro.pathling:library-runtime:7.2.0",
+                "io.delta:delta-spark_2.12:3.3.0",
+                "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5",
                 "org.apache.hadoop:hadoop-aws:3.3.4",
             ]
         ),

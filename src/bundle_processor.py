@@ -128,7 +128,7 @@ class BundleProcessor:
             self.settings.delta_database_dir, f"{resource_type}.parquet"
         )
 
-        delta_table = (
+        delta_table_builder = (
             DeltaTable.createIfNotExists(self.pc.spark)
             .location(resource_delta_table_path)
             .addColumns(resource_df.schema)
@@ -152,8 +152,15 @@ class BundleProcessor:
                 "delta.checkpoint.writeStatsAsStruct",
                 self.settings.delta.checkpoint_write_stats_as_struct,
             )
-            .execute()
         )
+
+        clustering_columns_by_resource_type = (
+            self.settings.delta.clustering_columns_by_resource_type
+        )
+        if cluster_columns := clustering_columns_by_resource_type.get(resource_type):
+            delta_table_builder = delta_table_builder.clusterBy(cluster_columns)
+
+        delta_table = delta_table_builder.execute()
 
         logger.info(
             "Table details: {details}",

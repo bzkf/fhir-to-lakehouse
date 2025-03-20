@@ -20,9 +20,10 @@ from settings import (
 
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
-minio = MinioContainer("docker.io/bitnami/minio:2025.1.20-debian-12-r0").with_command(
-    ""
-)
+minio = MinioContainer(
+    "docker.io/bitnami/minio:2025.3.12"
+    + "@sha256:7c92dd1ba1f48e1009079c5e3f0a98e3c5a34387fc474007f1a887db7643e2c2"
+).with_command("")
 
 
 minio.env["MINIO_UPDATE"] = "off"
@@ -226,6 +227,47 @@ def test_vaccuum_and_optimize(pathling_fixture, tmp_path):
     df = bp.prepare_stream(df)
 
     # batch_id of 0 already triggers the default upkeep interval
+    bp.process_batch(df, 0)
+
+    dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
+
+    assert dt.toDF().count() == 1
+    assert dt.toDF().first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+
+
+def test_liquid_clustering(pathling_fixture, tmp_path):
+    put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
+
+    data = {
+        "key": "key",
+        "value": put_bundle,
+        "timestamp": datetime.datetime.now(),
+        "partition": 0,
+        "offset": 0,
+    }
+
+    df = pathling_fixture.spark.createDataFrame([data])
+
+    clustering_columns_by_resource_type = {
+        "Patient": ["id", "birthDate"],
+    }
+
+    d = tmp_path / "warehouse" / "data"
+    settings = Settings(
+        delta_database_dir=d.as_posix(),
+        spark=SparkSettings(),
+        delta=DeltaSettings(
+            clustering_columns_by_resource_type=clustering_columns_by_resource_type
+        ),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+    )
+
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
+
+    # batch_id of 0 already triggers the default upkeep interval
+    # optimize triggers liquid clustering
     bp.process_batch(df, 0)
 
     dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())

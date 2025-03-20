@@ -43,11 +43,12 @@ class SparkSettings:
 
 @ts.settings
 class DeltaSettings:
-    auto_optimize_auto_compact: str = "true"
-    auto_optimize_optimize_write: str = "true"
+    auto_optimize_auto_compact: str = "false"
+    auto_optimize_optimize_write: str = "false"
     checkpoint_interval: str = "100"
-    checkpoint_write_stats_as_json: str = "true"
+    checkpoint_write_stats_as_json: str = "false"
     checkpoint_write_stats_as_struct: str = "true"
+    clustering_columns_by_resource_type: dict[str, list[str]] = {}
 
 
 @ts.settings

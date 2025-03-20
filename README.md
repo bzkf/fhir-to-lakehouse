@@ -2,6 +2,30 @@
 
 Reads FHIR bundles from Kafka, encodes them using the Pathling encoders, and stores them as Delta Lake tables.
 
+## Configuration
+
+The application uses the [Typed Settings](https://typed-settings.readthedocs.io/en/latest/) library, so you can
+configure everything in the [settings.py](./src/settings.py) using [environment variables](https://typed-settings.readthedocs.io/en/latest/guides/environment-variables.html).
+
+For the nested configuration it is easier to use a [config file](https://typed-settings.readthedocs.io/en/latest/guides/config-files.html):
+For example, create the followint settings.toml file:
+
+```toml
+[fhir-to-lakehouse.delta]
+checkpoint_interval = "123"
+
+[fhir-to-lakehouse.delta.clustering_columns_by_resource_type]
+Patient = ["id", "birthDate"]
+Observation = ["id", "effectiveDateTime", "subject"]
+Condition = ["id", "recordedDate", "onsetDateTime", "subject"]
+```
+
+and start the application with the env var `FHIR_TO_LAKEHOUSE_SETTINGS` pointing to this file:
+
+```sh
+FHIR_TO_LAKEHOUSE_SETTINGS=settings.toml python src/main.py
+```
+
 ## Development
 
 The [compose.yaml](compose.yaml) contains the development fixtures required to run the program out-of-the-box:
