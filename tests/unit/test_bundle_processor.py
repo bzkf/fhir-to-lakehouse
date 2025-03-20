@@ -21,7 +21,8 @@ from settings import (
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
 minio = MinioContainer(
-    "docker.io/bitnami/minio:2025.3.12@sha256:7c92dd1ba1f48e1009079c5e3f0a98e3c5a34387fc474007f1a887db7643e2c2"
+    "docker.io/bitnami/minio:2025.3.12"
+    + "@sha256:7c92dd1ba1f48e1009079c5e3f0a98e3c5a34387fc474007f1a887db7643e2c2"
 ).with_command("")
 
 

@@ -154,9 +154,10 @@ class BundleProcessor:
             )
         )
 
-        if cluster_columns := self.settings.delta.clustering_columns_by_resource_type.get(
-            resource_type
-        ):
+        clustering_columns_by_resource_type = (
+            self.settings.delta.clustering_columns_by_resource_type
+        )
+        if cluster_columns := clustering_columns_by_resource_type.get(resource_type):
             delta_table_builder = delta_table_builder.clusterBy(cluster_columns)
 
         delta_table = delta_table_builder.execute()
