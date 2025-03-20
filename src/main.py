@@ -1,3 +1,4 @@
+import pprint
 import sys
 
 from loguru import logger
@@ -27,7 +28,7 @@ def formatter(record) -> str:
 logger.remove(0)
 logger.add(sys.stdout, format=formatter, diagnose=True, backtrace=True, colorize=True)
 
-logger.info("Settings: {settings}", settings=settings)
+logger.info("Settings: {settings}", settings=pprint.pformat(settings))
 
 start_http_server(port=settings.metrics_port, addr=settings.metrics_addr)
 

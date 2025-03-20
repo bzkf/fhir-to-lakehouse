@@ -48,6 +48,7 @@ class DeltaSettings:
     checkpoint_interval: str = "100"
     checkpoint_write_stats_as_json: str = "false"
     checkpoint_write_stats_as_struct: str = "true"
+    clustering_columns_by_resource_type: dict[str, list[str]] = {}
 
 
 @ts.settings
