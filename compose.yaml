@@ -1,7 +1,7 @@
 # kics-scan ignore
 services:
   kafka:
-    image: docker.io/apache/kafka-native:3.9.0@sha256:c20b97f0a3990771f52bf7855ccb9ae82ac683a357a101482ba349dfb2ae0cdb
+    image: docker.io/apache/kafka-native:4.0.0@sha256:752ce3886d3be52576dd976f79bbac2a06286f43417487b52530c9928a860d50
     ipc: none
     security_opt:
       - "no-new-privileges:true"
