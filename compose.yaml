@@ -26,7 +26,7 @@ services:
       - 127.0.0.1:9094:9094
 
   kafbat-ui:
-    image: ghcr.io/kafbat/kafka-ui:v1.1.0@sha256:050543568675d5f1c34f6bb62c47720f700cf7baa1a4cf7bb7c38babed2fed7f
+    image: ghcr.io/kafbat/kafka-ui:v1.2.0@sha256:185da4ad3e88538a0f4da067f4c7bb23aa0efa608c74d115f0876919b5d3a91b
     ipc: none
     security_opt:
       - "no-new-privileges:true"
@@ -43,7 +43,7 @@ services:
       - 127.0.0.1:8084:8080
 
   minio:
-    image: docker.io/bitnami/minio:2025.3.12@sha256:7c92dd1ba1f48e1009079c5e3f0a98e3c5a34387fc474007f1a887db7643e2c2
+    image: docker.io/bitnami/minio:2025.4.3@sha256:0fbdeebe39232aed22f11663e170515cdbda9a71bb93c391e416c738b32ee890
     environment:
       MINIO_UPDATE: "off"
       MINIO_CALLHOME_ENABLE: "off"
@@ -57,7 +57,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   mock-data-loader:
-    image: docker.io/confluentinc/cp-kafkacat:7.1.15@sha256:273c2022aee0cfc0a181acf1801912c45b0e1fb62785711ab2ca64065d072fc7
+    image: docker.io/confluentinc/cp-kafkacat:7.1.16@sha256:ce6f7079c7463572e62a8fbf0fa2af124e2687f679e64966081d6b339a604b10
     ipc: none
     security_opt:
       - "no-new-privileges:true"
