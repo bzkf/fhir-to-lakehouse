@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   build:
-    uses: miracum/.github/.github/workflows/standard-build.yaml@b09452445e168de479d5059026e8e8a54d11c8d8 # v1.13.2
+    uses: miracum/.github/.github/workflows/standard-build.yaml@f4c8b63f01be62f28729c15d6ddffebeb0725fc8 # v1.16.9
     permissions:
       contents: write
       id-token: write
@@ -43,7 +43,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
         with:
           python-version: 3.12
           cache: "pip"
@@ -59,7 +59,7 @@ jobs:
 
       - name: Upload test coverage
         if: ${{ always() }}
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pytest-unit-tests-results
           path: htmlcov/
@@ -97,7 +97,7 @@ jobs:
 
       - name: Download container image
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: ${{ needs.build.outputs.image-slug }}
           path: /tmp
@@ -108,7 +108,7 @@ jobs:
           kind load image-archive /tmp/image.tar
 
       - name: Set up Python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
         with:
           python-version: 3.12
           cache: "pip"
@@ -138,7 +138,7 @@ jobs:
 
       - name: Upload test coverage
         if: ${{ always() }}
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pytest-integration-tests-results
           path: htmlcov/
@@ -150,14 +150,14 @@ jobs:
 
       - name: Upload cluster dump
         if: always()
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: kind-cluster-dump.txt
           path: |
             kind-cluster-dump.txt
 
   lint:
-    uses: miracum/.github/.github/workflows/standard-lint.yaml@b09452445e168de479d5059026e8e8a54d11c8d8 # v1.13.2
+    uses: miracum/.github/.github/workflows/standard-lint.yaml@f4c8b63f01be62f28729c15d6ddffebeb0725fc8 # v1.16.9
     permissions:
       contents: read
       pull-requests: write
@@ -173,7 +173,7 @@ jobs:
       github-token: ${{ secrets.GITHUB_TOKEN }}
 
   release:
-    uses: miracum/.github/.github/workflows/standard-release.yaml@b09452445e168de479d5059026e8e8a54d11c8d8 # v1.13.2
+    uses: miracum/.github/.github/workflows/standard-release.yaml@f4c8b63f01be62f28729c15d6ddffebeb0725fc8 # v1.16.9
     needs:
       - build
       - unit-tests
