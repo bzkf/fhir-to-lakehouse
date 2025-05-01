@@ -39,7 +39,7 @@ services:
         condition: service_started
 
   trino:
-    image: docker.io/trinodb/trino:474@sha256:d259f20e7fb7391039c4c75f11a70d4d761c58a7fa4a0f723066324f1666040d
+    image: docker.io/trinodb/trino:475@sha256:a04abba5e99d614dfe28dd16e0d5dec9e99dfea2a694cf8d0685f5c9e3c0df60
     ipc: none
     security_opt:
       - "no-new-privileges:true"
