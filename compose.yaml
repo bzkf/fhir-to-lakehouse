@@ -26,7 +26,7 @@ services:
       - 127.0.0.1:9094:9094
 
   kafbat-ui:
-    image: ghcr.io/kafbat/kafka-ui:v1.1.0@sha256:050543568675d5f1c34f6bb62c47720f700cf7baa1a4cf7bb7c38babed2fed7f
+    image: ghcr.io/kafbat/kafka-ui:v1.2.0@sha256:185da4ad3e88538a0f4da067f4c7bb23aa0efa608c74d115f0876919b5d3a91b
     ipc: none
     security_opt:
       - "no-new-privileges:true"
