@@ -11,6 +11,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 from bundle_processor import BundleProcessor
+from metrics import KafkaOffsetTrackingStreamingQueryListener
 from settings import settings
 
 
@@ -180,6 +181,8 @@ default_df = df_result.filter(
     .trigger(processingTime=settings.spark.streaming_processing_time)
     .start()
 )
+
+spark.streams.addListener(KafkaOffsetTrackingStreamingQueryListener())
 
 logger.info("Initialized streams. Waiting for termination.")
 

@@ -2,16 +2,13 @@ import os
 
 from delta import DeltaTable
 from loguru import logger
-from opentelemetry.metrics import get_meter_provider
 from pathling import PathlingContext
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
-from metrics import MeasureElapsed
+from metrics import MeasureElapsed, meter
 from settings import Settings
-
-meter = get_meter_provider().get_meter("fhir_to_lakehouse.instrumentation")
 
 delta_operations_timer = meter.create_histogram(
     name="delta-operation-duration",
