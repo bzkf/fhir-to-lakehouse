@@ -1,17 +1,21 @@
+import logging
 import os
 
 from delta import DeltaTable
 from loguru import logger
-from opentelemetry.metrics import get_meter_provider
 from pathling import PathlingContext
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
+from tenacity import (
+    before_sleep_log,
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+)
 
-from metrics import MeasureElapsed
+from metrics import MeasureElapsed, meter
 from settings import Settings
-
-meter = get_meter_provider().get_meter("fhir_to_lakehouse.instrumentation")
 
 delta_operations_timer = meter.create_histogram(
     name="delta-operation-duration",
@@ -198,6 +202,11 @@ class BundleProcessor:
         if batch_id % self.settings.spark.upkeep_interval == 0:
             self._optimize_and_vacuum_table(delta_table, resource_type=resource_type)
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=5, max=30),
+        stop=stop_after_attempt(5),
+        before_sleep=before_sleep_log(logger, logging.WARN),
+    )
     def _merge_into_table(
         self, resource_df: DataFrame, resource_type: str, delta_table: DeltaTable
     ):
@@ -221,6 +230,11 @@ class BundleProcessor:
             resources_count, {"operation": "written", "resource_type": resource_type}
         )
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        stop=stop_after_attempt(5),
+        before_sleep=before_sleep_log(logger, logging.WARN),
+    )
     def _delete_from_table(
         self,
         delete_df: DataFrame,
@@ -246,6 +260,11 @@ class BundleProcessor:
             deletes_count, {"operation": "delete", "resource_type": resource_type}
         )
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        stop=stop_after_attempt(5),
+        before_sleep=before_sleep_log(logger, logging.WARN),
+    )
     def _optimize_and_vacuum_table(self, delta_table: DeltaTable, resource_type: str):
         logger.info("Optimizing and vacuuming table")
 
@@ -268,6 +287,11 @@ class BundleProcessor:
 
         logger.info("Finished vacuuming table.")
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        stop=stop_after_attempt(5),
+        before_sleep=before_sleep_log(logger, logging.WARN),
+    )
     def _register_table_in_metastore(self, table: DeltaTable, table_path: str):
         logger.info(
             "Registering '{table}' in '{metastore}'",
