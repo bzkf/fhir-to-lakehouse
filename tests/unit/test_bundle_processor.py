@@ -37,7 +37,7 @@ minio.env["MINIO_ROOT_PASSWORD"] = "miniopass"
 delta_spark_builder = ()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def setup_s3(request):
     minio.start()
 
@@ -47,10 +47,11 @@ def setup_s3(request):
     request.addfinalizer(remove_container)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def pathling_fixture(setup_s3):
     spark = (
         SparkSession.builder.master("local[*]")
+        .config("spark.driver.bindAddress", "127.0.0.1")
         .config(
             "spark.jars.packages",
             ",".join(
