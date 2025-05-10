@@ -50,7 +50,9 @@ def setup_s3(request):
 @pytest.fixture
 def pathling_fixture(setup_s3):
     spark = (
-        SparkSession.builder.config(
+        SparkSession.builder.master("local[*]")
+        .config("spark.driver.bindAddress", "127.0.0.1")
+        .config(
             "spark.jars.packages",
             ",".join(
                 [
