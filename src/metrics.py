@@ -86,7 +86,12 @@ class KafkaOffsetTrackingStreamingQueryListener(StreamingQueryListener):
         For example, you may find :class:`StreamingQuery`
         terminates when processing `QueryProgressEvent`.
         """
-        logger.debug(event.progress.prettyJson)
+
+        logger.info(
+            "Streaming Query Progress for {query_name}: {source}",
+            query_name=event.progress.name,
+            source=json.loads(event.progress.prettyJson),
+        )
 
         self.query_processed_rows_per_second.set(
             event.progress.processedRowsPerSecond, {"query_name": event.progress.name}
@@ -94,15 +99,15 @@ class KafkaOffsetTrackingStreamingQueryListener(StreamingQueryListener):
 
         for source in event.progress.sources:
             if source.description.startswith("Kafka"):
-                if source.startOffset:
+                if source.startOffset != "None":
                     self._update_kafka_offsets(
                         "start", event.progress.name, source.startOffset
                     )
-                if source.endOffset:
+                if source.endOffset != "None":
                     self._update_kafka_offsets(
                         "end", event.progress.name, source.endOffset
                     )
-                if source.latestOffset:
+                if source.latestOffset != "None":
                     self._update_kafka_offsets(
                         "latest", event.progress.name, source.latestOffset
                     )
