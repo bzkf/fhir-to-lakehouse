@@ -1,8 +1,8 @@
 -r requirements.txt
 
-pytest==8.3.4
-pytest-cov==6.0.0
-testcontainers[minio]==4.9.1
+pytest==8.3.5
+pytest-cov==6.1.1
+testcontainers[minio]==4.10.0
 kafka-python-ng==2.2.3
-deltalake==0.24.0
+deltalake==0.25.5
 pandas==2.2.3

@@ -43,7 +43,7 @@ services:
       - 127.0.0.1:8084:8080
 
   minio:
-    image: docker.io/bitnami/minio:2025.3.12@sha256:31d778a4bfa5be550c00b4789b27257b67da6c6b8ed81047dde357ec8cc7f48b
+    image: docker.io/bitnami/minio:2025.4.22@sha256:d7cd0e172c4cc0870f4bdc3142018e2a37be9acf04d68f386600daad427e0cab
     environment:
       MINIO_UPDATE: "off"
       MINIO_CALLHOME_ENABLE: "off"
@@ -57,7 +57,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   mock-data-loader:
-    image: docker.io/confluentinc/cp-kafkacat:7.1.15@sha256:273c2022aee0cfc0a181acf1801912c45b0e1fb62785711ab2ca64065d072fc7
+    image: docker.io/confluentinc/cp-kafkacat:7.1.16@sha256:ce6f7079c7463572e62a8fbf0fa2af124e2687f679e64966081d6b339a604b10
     ipc: none
     security_opt:
       - "no-new-privileges:true"
