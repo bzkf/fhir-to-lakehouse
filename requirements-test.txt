@@ -4,5 +4,6 @@ pytest==8.3.5
 pytest-cov==6.1.1
 testcontainers[minio]==4.10.0
 kafka-python-ng==2.2.3
-deltalake==0.25.5
+deltalake==1.0.0
+deltalake[pyarrow]==1.0.0
 pandas==2.2.3
