@@ -1,4 +1,4 @@
-FROM docker.io/apache/spark:3.5.5-scala2.12-java17-python3-ubuntu@sha256:96dc2bada923824300e1ece564389258934655ba6f463d6daff8753ff0c639ce
+FROM docker.io/apache/spark:3.5.6-scala2.12-java17-python3-ubuntu@sha256:702d82ecea50c6f8344d3df753ba26f05ffd9d1d052e180fed9c3d6c04f77730
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     METRICS_ADDR=0.0.0.0
