@@ -1,5 +1,7 @@
 # fhir-to-lakehouse
 
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/bzkf/fhir-to-lakehouse?label=openssf%20scorecard&style=flat)](https://scorecard.dev/viewer/?uri=github.com/bzkf/fhir-to-lakehouse)
+
 Reads FHIR bundles from Kafka, encodes them using the Pathling encoders, and stores them as Delta Lake tables.
 
 ## Configuration
