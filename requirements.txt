@@ -39,7 +39,7 @@ prometheus-client==0.22.1
     # via opentelemetry-exporter-prometheus
 py4j==0.10.9.7
     # via pyspark
-pyspark==3.5.6
+pyspark==4.0.0
     # via
     #   -r requirements.in
     #   delta-spark
