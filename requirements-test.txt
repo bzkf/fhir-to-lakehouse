@@ -660,8 +660,8 @@ pygments==2.19.1 \
     --hash=sha256:61c16d2a8576dc0649d9f39e089b5f02bcd27fba10d8fb4dcc28173f7a45151f \
     --hash=sha256:9ea1544ad55cecf4b8242fab6dd35a93bbce657034b0611ee383099054ab6d8c
     # via pytest
-pyspark==3.5.6 \
-    --hash=sha256:f8b1c4360e41ab398c64904fae08740503bcb6bd389457d659fa6d9f2952cc48
+pyspark==4.0.0 \
+    --hash=sha256:38db1b4f6095a080d7605e578d775528990e66dc326311d93e94a71cfc24e5a5
     # via
     #   -r requirements.txt
     #   delta-spark
