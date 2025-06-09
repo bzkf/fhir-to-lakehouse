@@ -26,6 +26,7 @@ GROOVY_NPM_GROOVY_LINT_ARGUMENTS:
 REPOSITORY_TRIVY_ARGUMENTS:
   - "--severity=MEDIUM,HIGH,CRITICAL"
   - "--ignore-unfixed"
+  - "--skip-dirs=tests/"
 
 REPOSITORY_KICS_ARGUMENTS:
   - --fail-on=HIGH
