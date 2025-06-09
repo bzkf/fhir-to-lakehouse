@@ -56,6 +56,7 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "requirements**.txt"
+          activate-environment: true
 
       - name: Install test dependencies
         run: |
@@ -126,6 +127,7 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "requirements**.txt"
+          activate-environment: true
 
       - name: Install test dependencies
         run: |
