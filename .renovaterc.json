@@ -2,6 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>miracum/.github//renovate/default"],
   "pip-compile": {
-    "managerFilePatterns": ["/(^|/)requirements\\.txt$/", "/(^|/)requirements-test\\.txt$/"]
+    "managerFilePatterns": [
+      "/(^|/)requirements\\.txt$/",
+      "/(^|/)requirements-test\\.txt$/"
+    ]
   }
 }
