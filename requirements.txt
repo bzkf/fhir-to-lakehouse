@@ -22,27 +22,27 @@ loguru==0.7.3 \
     --hash=sha256:19480589e77d47b8d85b2c827ad95d49bf31b0dcde16593892eb51dd18706eb6 \
     --hash=sha256:31a33c10c8e1e10422bfd431aeb5d351c7cf7fa671e3c4df004162264b28220c
     # via -r requirements.in
-opentelemetry-api==1.34.0 \
-    --hash=sha256:390b81984affe4453180820ca518de55e3be051111e70cc241bb3b0071ca3a2c \
-    --hash=sha256:48d167589134799093005b7f7f347c69cc67859c693b17787f334fbe8871279f
+opentelemetry-api==1.34.1 \
+    --hash=sha256:64f0bd06d42824843731d05beea88d4d4b6ae59f9fe347ff7dfa2cc14233bbb3 \
+    --hash=sha256:b7df4cb0830d5a6c29ad0c0691dbae874d8daefa934b8b1d642de48323d32a8c
     # via
     #   -r requirements.in
     #   opentelemetry-exporter-prometheus
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
-opentelemetry-exporter-prometheus==0.55b0 \
-    --hash=sha256:0eb8e642dc2343906d7e63f34057ad4c832d21cdd1422e5b1f8794cb127a3f6d \
-    --hash=sha256:1328ff7967b2bc34526234f87b56177eaf4e403f1f93f68393be58b6b810b0ff
+opentelemetry-exporter-prometheus==0.55b1 \
+    --hash=sha256:d13ec0b22bf394113ff1ada5da98133a4b051779b803dae183188e26c4bd9ee0 \
+    --hash=sha256:f364fbbff9e5de37a112ff104d1185fb1d7e2046c5ab5911e5afebc7ab3ddf0e
     # via -r requirements.in
-opentelemetry-sdk==1.34.0 \
-    --hash=sha256:719559622afcd515c2aec462ccb749ba2e70075a01df45837623643814d33716 \
-    --hash=sha256:7850bcd5b5c95f9aae48603d6592bdad5c7bdef50c03e06393f8f457d891fe32
+opentelemetry-sdk==1.34.1 \
+    --hash=sha256:308effad4059562f1d92163c61c8141df649da24ce361827812c40abb2a1e96e \
+    --hash=sha256:8091db0d763fcd6098d4781bbc80ff0971f94e260739aa6afe6fd379cdf3aa4d
     # via
     #   -r requirements.in
     #   opentelemetry-exporter-prometheus
-opentelemetry-semantic-conventions==0.55b0 \
-    --hash=sha256:63bb15b67377700e51c422d0d24092ca6ce9f3a4cb6f032375aa8af1fc2aab65 \
-    --hash=sha256:933d2e20c2dbc0f9b2f4f52138282875b4b14c66c491f5273bcdef1781368e9c
+opentelemetry-semantic-conventions==0.55b1 \
+    --hash=sha256:5da81dfdf7d52e3d37f8fe88d5e771e191de924cfff5f550ab0b8f7b2409baed \
+    --hash=sha256:ef95b1f009159c28d7a7849f5cbc71c4c34c845bb514d66adfdf1b3fff3598b3
     # via opentelemetry-sdk
 pathling==7.2.0 \
     --hash=sha256:e024510d2d6296bdec4f3e5de93f8b0656317c6d06102026fe44c67602cb3635 \
@@ -99,7 +99,7 @@ tomli==2.2.1 \
     --hash=sha256:e85e99945e688e32d5a35c1ff38ed0b3f41f43fad8df0bdf79f72b2ba7bc5272 \
     --hash=sha256:ece47d672db52ac607a3d9599a9d48dcb2f2f735c6c2d1f34130085bb12b112a \
     --hash=sha256:f4039b9cbc3048b2416cc57ab3bda989a6fcf9b36cf8937f01a6e731b64f80d7
-    # via typed-settings
+    # via -r requirements.in
 typed-settings==24.6.0 \
     --hash=sha256:22221598a821395700beaafd8eab0e1bc596b394767aa37e0926c5f74d0b6a62 \
     --hash=sha256:9a5595de33f80452a2038e018bc45508fffc238a8752f08f5c03dc8e7bc0d1e2
