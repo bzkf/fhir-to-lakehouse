@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.11.5](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.11.4...v1.11.5) (2025-06-28)
+
+
+### Miscellaneous Chores
+
+* **deps:** update all non-major dependencies ([#65](https://github.com/bzkf/fhir-to-lakehouse/issues/65)) ([e311524](https://github.com/bzkf/fhir-to-lakehouse/commit/e311524f4cc88cdcccea7cb22a46d46648d6c535))
+* **deps:** update dependency urllib3 to v2.5.0 [security] ([#64](https://github.com/bzkf/fhir-to-lakehouse/issues/64)) ([6d3175f](https://github.com/bzkf/fhir-to-lakehouse/commit/6d3175f09b7619b5a75e5c781f8ceb550b9b597c))
+* **deps:** update docker.io/trinodb/trino docker tag to v476 ([#67](https://github.com/bzkf/fhir-to-lakehouse/issues/67)) ([05650a4](https://github.com/bzkf/fhir-to-lakehouse/commit/05650a4d315ddd2ad81d1e29e2c6bc919ff29788))
+* **deps:** update github-actions ([#66](https://github.com/bzkf/fhir-to-lakehouse/issues/66)) ([34ffa61](https://github.com/bzkf/fhir-to-lakehouse/commit/34ffa61bff6813e5fb1665df84e3e678b7a08713))
+
 ## [1.11.4](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.11.3...v1.11.4) (2025-06-09)
 
 
