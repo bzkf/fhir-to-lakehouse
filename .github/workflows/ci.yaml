@@ -58,7 +58,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest -vv --log-cli-level=20 --cov=src --cov-report=html tests/unit/
+          pytest -vv --log-cli-level=20 --cov=src --cov-report=html --capture=no tests/unit/
 
       - name: Upload test coverage
         if: ${{ always() }}
@@ -137,7 +137,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest -vv --log-cli-level=20 --cov=src --cov-report=html tests/integration/
+          pytest -vv --log-cli-level=20 --cov=src --cov-report=html --capture=no tests/integration/
 
       - name: Upload test coverage
         if: ${{ always() }}
