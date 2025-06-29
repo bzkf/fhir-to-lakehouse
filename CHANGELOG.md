@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.11.5...v1.12.0) (2025-06-29)
+
+
+### Features
+
+* integrated lakehousekeeper cli ([#69](https://github.com/bzkf/fhir-to-lakehouse/issues/69)) ([c07bec4](https://github.com/bzkf/fhir-to-lakehouse/commit/c07bec4195c075644cb71bf82061ec41da642942))
+
 ## [1.11.5](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.11.4...v1.11.5) (2025-06-28)
 
 
