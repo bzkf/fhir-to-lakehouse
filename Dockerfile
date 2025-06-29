@@ -2,7 +2,7 @@ FROM docker.io/apache/spark:3.5.6-scala2.12-java17-python3-ubuntu@sha256:702d82e
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     METRICS_ADDR=0.0.0.0
-WORKDIR /opt/fhir-to-delta
+WORKDIR /opt/fhir-to-lakehouse
 USER root
 
 RUN <<EOF
@@ -21,4 +21,5 @@ USER 185:185
 RUN SPARK_INSTALL_PACKAGES_AND_EXIT=1 python3 src/main.py
 
 WORKDIR /home/spark
-ENTRYPOINT [ "python3", "/opt/fhir-to-delta/src/main.py" ]
+ENTRYPOINT [ "python3" ]
+CMD [ "/opt/fhir-to-lakehouse/src/main.py" ]

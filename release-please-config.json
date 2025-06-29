@@ -8,6 +8,12 @@
   "release-type": "simple",
   "packages": {
     ".": {
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "README.md"
+        }
+      ],
       "release-type": "simple",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
