@@ -28,6 +28,20 @@ and start the application with the env var `FHIR_TO_LAKEHOUSE_SETTINGS` pointing
 FHIR_TO_LAKEHOUSE_SETTINGS=settings.toml python src/main.py
 ```
 
+## Lakehousekeeper
+
+A CLI tool called `lakehousekeeper` is also part of the container distribution.
+It implements commands for vacuuming, optimizing, and registering tables from S3-compatible object storage.
+You can invoke it by running:
+
+<!-- x-release-please-start-version -->
+
+```sh
+docker run --rm -it ghcr.io/bzkf/fhir-to-lakehouse:v1.11.5 /opt/fhir-to-lakehouse/src/lakehousekeeper.py -- --help
+```
+
+<!-- x-release-please-end-version -->
+
 ## Development
 
 The [compose.yaml](compose.yaml) contains the development fixtures required to run the program out-of-the-box:

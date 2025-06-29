@@ -6,5 +6,6 @@
       "/(^|/)requirements\\.txt$/",
       "/(^|/)requirements-test\\.txt$/"
     ]
-  }
+  },
+  "ignorePaths": ["**/node_modules/**", "**/bower_components/**"]
 }
