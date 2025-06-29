@@ -37,7 +37,7 @@ You can invoke it by running:
 <!-- x-release-please-start-version -->
 
 ```sh
-docker run --rm -it ghcr.io/bzkf/fhir-to-lakehouse:v1.11.5 /opt/fhir-to-lakehouse/src/lakehousekeeper.py -- --help
+docker run --rm -it ghcr.io/bzkf/fhir-to-lakehouse:v1.12.0 /opt/fhir-to-lakehouse/src/lakehousekeeper.py -- --help
 ```
 
 <!-- x-release-please-end-version -->
