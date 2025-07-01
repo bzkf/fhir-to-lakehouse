@@ -4,12 +4,12 @@ dependencies:
   version: 0.45.0
 - name: stream-processors
   repository: oci://ghcr.io/miracum/charts
-  version: 1.8.6
+  version: 1.10.2
 - name: minio
   repository: oci://registry-1.docker.io/bitnamicharts
-  version: 15.0.1
+  version: 17.0.9
 - name: akhq
   repository: https://akhq.io/
   version: 0.25.1
-digest: sha256:31de97e43acce78c1906d543c948b418a87b8f6bb3245b5ebcfc8dd60c224970
-generated: "2025-02-06T21:57:07.506385472+01:00"
+digest: sha256:8f409df1f2f7038f6b28c58adf59cc9834e5199bfe290f98cfcbcbfef8cf39ee
+generated: "2025-07-01T03:12:40.17870139Z"
