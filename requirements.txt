@@ -97,9 +97,9 @@ click==8.2.1 \
     --hash=sha256:27c491cc05d968d271d5a1db13e3b5a184636d9d930f148c50b038f0d0646202 \
     --hash=sha256:61a3265b914e850b85317d0b3109c7f8cd35a670f963866005d6ef1d5175a12b
     # via -r requirements.in
-delta-spark==3.3.2 \
-    --hash=sha256:0a34c720b4368f1655e2348e380b5b3baaca0f2b3d519a3198208f00f65e4062 \
-    --hash=sha256:f3e89ec4a15a541988f9d6496016a67cf619475e8eeca71da5e073f6ba0da845
+delta-spark==4.0.0 \
+    --hash=sha256:39325d76d6e5d8b5fea9d47827c59f5e0674844cb95f97b2cc613bfc5209c7ec \
+    --hash=sha256:4e4ded07bb9ee4f6a0df45606d84395239d4b82001e765a627fecc1e914f3029
     # via -r requirements.in
 deltalake==1.0.2 \
     --hash=sha256:43731c48657c16c1728c90270e5e7ae1f3fa1a5b6fb0cb0b55c88c5c8f23cc3f \
