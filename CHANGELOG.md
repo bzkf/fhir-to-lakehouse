@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.12.1](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.12.0...v1.12.1) (2025-07-01)
+
+
+### Miscellaneous Chores
+
+* **deps:** update github-actions ([#71](https://github.com/bzkf/fhir-to-lakehouse/issues/71)) ([c1cc021](https://github.com/bzkf/fhir-to-lakehouse/commit/c1cc0214a38dc08752891f2d40f1c6de9658b623))
+* **deps:** update minio docker tag to v17 ([#74](https://github.com/bzkf/fhir-to-lakehouse/issues/74)) ([011e881](https://github.com/bzkf/fhir-to-lakehouse/commit/011e8819952ee549b9f26225482d478bbc5790e6))
+
 ## [1.12.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.11.5...v1.12.0) (2025-06-29)
 
 
