@@ -8,15 +8,15 @@ appVersion: 0.0.0
 dependencies:
   - name: strimzi-kafka-operator
     repository: oci://quay.io/strimzi-helm
-    version: 0.45.0
+    version: 0.47.0
   - name: stream-processors
     repository: oci://ghcr.io/miracum/charts
-    version: 1.10.2
+    version: 1.10.3
     condition: stream-processors.enabled
   - name: minio
     repository: oci://registry-1.docker.io/bitnamicharts
-    version: 17.0.9
+    version: 17.0.15
   - name: akhq
     condition: akhq.enabled
     repository: https://akhq.io/
-    version: 0.25.1
+    version: 0.26.0
