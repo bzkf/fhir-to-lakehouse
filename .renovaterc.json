@@ -7,5 +7,6 @@
       "/(^|/)requirements-test\\.txt$/"
     ]
   },
-  "ignorePaths": ["**/node_modules/**", "**/bower_components/**"]
+  "ignorePaths": ["**/node_modules/**", "**/bower_components/**"],
+  "ignoreDeps": ["py4j"]
 }
