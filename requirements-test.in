@@ -1,7 +1,7 @@
--r requirements.txt
+-r requirements.in
 
-pytest==8.4.0
-pytest-cov==6.1.1
-testcontainers[minio]==4.10.0
-kafka-python-ng==2.2.3
-pandas==2.3.0
+pytest==8.4.1
+pytest-cov==6.2.1
+testcontainers[minio]==4.12.0
+kafka-python==2.2.15
+pandas==2.3.1
