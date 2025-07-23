@@ -658,8 +658,8 @@ pygments==2.19.2 \
     --hash=sha256:636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887 \
     --hash=sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b
     # via pytest
-pyspark==3.5.6 \
-    --hash=sha256:f8b1c4360e41ab398c64904fae08740503bcb6bd389457d659fa6d9f2952cc48
+pyspark==4.0.0 \
+    --hash=sha256:38db1b4f6095a080d7605e578d775528990e66dc326311d93e94a71cfc24e5a5
     # via
     #   -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
     #   delta-spark
