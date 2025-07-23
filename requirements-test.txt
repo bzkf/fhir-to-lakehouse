@@ -366,9 +366,9 @@ coverage[toml]==7.9.2 \
     --hash=sha256:fae939811e14e53ed8a9818dad51d434a41ee09df9305663735f2e2d2d7d959b \
     --hash=sha256:ff0d9eae8cdfcd58fe7893b88993723583a6ce4dfbfd9f29e001922544f95615
     # via pytest-cov
-delta-spark==3.3.2 \
-    --hash=sha256:0a34c720b4368f1655e2348e380b5b3baaca0f2b3d519a3198208f00f65e4062 \
-    --hash=sha256:f3e89ec4a15a541988f9d6496016a67cf619475e8eeca71da5e073f6ba0da845
+delta-spark==4.0.0 \
+    --hash=sha256:39325d76d6e5d8b5fea9d47827c59f5e0674844cb95f97b2cc613bfc5209c7ec \
+    --hash=sha256:4e4ded07bb9ee4f6a0df45606d84395239d4b82001e765a627fecc1e914f3029
     # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
 deltalake[pyarrow]==1.1.0 \
     --hash=sha256:323aa5024e3d857b5770466c211b37009891c5ee8266feed4ff95279f49ac657 \
