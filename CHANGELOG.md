@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.12.1](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.12.0...v1.12.1) (2025-07-23)
+
+
+### Miscellaneous Chores
+
+* **deps:** update all non-major dependencies ([#72](https://github.com/bzkf/fhir-to-lakehouse/issues/72)) ([9358c0f](https://github.com/bzkf/fhir-to-lakehouse/commit/9358c0f89d7e66fc66c59116eae365454df43385))
+* **deps:** update github-actions ([#71](https://github.com/bzkf/fhir-to-lakehouse/issues/71)) ([c1cc021](https://github.com/bzkf/fhir-to-lakehouse/commit/c1cc0214a38dc08752891f2d40f1c6de9658b623))
+* **deps:** update github-actions ([#77](https://github.com/bzkf/fhir-to-lakehouse/issues/77)) ([a0ac745](https://github.com/bzkf/fhir-to-lakehouse/commit/a0ac745461fb1f60351aef84e2995360ba88c216))
+* **deps:** update github-actions ([#78](https://github.com/bzkf/fhir-to-lakehouse/issues/78)) ([7bf4460](https://github.com/bzkf/fhir-to-lakehouse/commit/7bf4460467a1a68c91fea5962698eff59a2a6671))
+* **deps:** update minio docker tag to v17 ([#74](https://github.com/bzkf/fhir-to-lakehouse/issues/74)) ([011e881](https://github.com/bzkf/fhir-to-lakehouse/commit/011e8819952ee549b9f26225482d478bbc5790e6))
+* **renovate:** ignore py4j ([#76](https://github.com/bzkf/fhir-to-lakehouse/issues/76)) ([c07de7d](https://github.com/bzkf/fhir-to-lakehouse/commit/c07de7d33121cf31a7c341508e4b4c8b58d2364f))
+
 ## [1.12.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.11.5...v1.12.0) (2025-06-29)
 
 
