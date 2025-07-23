@@ -1,15 +1,15 @@
 dependencies:
 - name: strimzi-kafka-operator
   repository: oci://quay.io/strimzi-helm
-  version: 0.45.0
+  version: 0.47.0
 - name: stream-processors
   repository: oci://ghcr.io/miracum/charts
-  version: 1.10.2
+  version: 1.10.3
 - name: minio
   repository: oci://registry-1.docker.io/bitnamicharts
-  version: 17.0.9
+  version: 17.0.15
 - name: akhq
   repository: https://akhq.io/
-  version: 0.25.1
-digest: sha256:8f409df1f2f7038f6b28c58adf59cc9834e5199bfe290f98cfcbcbfef8cf39ee
-generated: "2025-07-01T03:12:40.17870139Z"
+  version: 0.26.0
+digest: sha256:dfa8d8cbfd6adafbe92881d589f157ae581ca790ead087a458f48ad6c7b84d3a
+generated: "2025-07-22T19:10:58.038684877Z"
