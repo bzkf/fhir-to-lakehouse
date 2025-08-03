@@ -117,7 +117,7 @@ attrs==25.3.0 \
 boto3==1.39.11 \
     --hash=sha256:3027edf20642fe1d5f9dc50a420d0fe2733073ed6a9f0f047b60fe08c3682132 \
     --hash=sha256:af8f1dad35eceff7658fab43b39b0f55892b6e3dd12308733521cc24dd2c9a02
-    # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    # via -r requirements.in
 botocore==1.39.11 \
     --hash=sha256:1545352931a8a186f3e977b1e1a4542d7d434796e274c3c62efd0210b5ea76dc \
     --hash=sha256:953b12909d6799350e346ab038e55b6efe622c616f80aef74d7a6683ffdd972c
@@ -296,7 +296,7 @@ charset-normalizer==3.4.2 \
 click==8.2.1 \
     --hash=sha256:27c491cc05d968d271d5a1db13e3b5a184636d9d930f148c50b038f0d0646202 \
     --hash=sha256:61a3265b914e850b85317d0b3109c7f8cd35a670f963866005d6ef1d5175a12b
-    # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    # via -r requirements.in
 coverage[toml]==7.9.2 \
     --hash=sha256:0a07757de9feb1dfafd16ab651e0f628fd7ce551604d1bf23e47e1ddca93f08a \
     --hash=sha256:0a17eaf46f56ae0f870f14a3cbc2e4632fe3771eab7f687eda1ee59b73d09fe4 \
@@ -369,7 +369,7 @@ coverage[toml]==7.9.2 \
 delta-spark==3.3.2 \
     --hash=sha256:0a34c720b4368f1655e2348e380b5b3baaca0f2b3d519a3198208f00f65e4062 \
     --hash=sha256:f3e89ec4a15a541988f9d6496016a67cf619475e8eeca71da5e073f6ba0da845
-    # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    # via -r requirements.in
 deltalake[pyarrow]==1.1.0 \
     --hash=sha256:323aa5024e3d857b5770466c211b37009891c5ee8266feed4ff95279f49ac657 \
     --hash=sha256:4d587f407e03d1dad5df75d55938cb2d74a02e743557158423dfd03b0b3f49d7 \
@@ -378,7 +378,7 @@ deltalake[pyarrow]==1.1.0 \
     --hash=sha256:ce14441f5ae62bf542d61d41e1c8f6668cffca1432912accb6dadaa425896664 \
     --hash=sha256:da44072892218ef148a4d756698acd2c13790ead618227937122f9f49013c690 \
     --hash=sha256:dc515d641f6d3c7e88483e02c2619268e6cdfc428515a9d3ea0457671afc69c6
-    # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    # via -r requirements.in
 deprecated==1.2.18 \
     --hash=sha256:422b6f6d859da6f2ef57857761bfb392480502a64c3028ca9bbe86085d72115d \
     --hash=sha256:bd5011788200372a32418f888e326a09ff80d0214bd961147cfed01b5c018eec
@@ -416,7 +416,7 @@ kafka-python==2.2.15 \
 loguru==0.7.3 \
     --hash=sha256:19480589e77d47b8d85b2c827ad95d49bf31b0dcde16593892eb51dd18706eb6 \
     --hash=sha256:31a33c10c8e1e10422bfd431aeb5d351c7cf7fa671e3c4df004162264b28220c
-    # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    # via -r requirements.in
 minio==7.2.16 \
     --hash=sha256:81e365c8494d591d8204a63ee7596bfdf8a7d06ad1b1507d6b9c1664a95f299a \
     --hash=sha256:9288ab988ca57c181eb59a4c96187b293131418e28c164392186c2b89026b223
@@ -478,19 +478,19 @@ opentelemetry-api==1.35.0 \
     --hash=sha256:a111b959bcfa5b4d7dffc2fbd6a241aa72dd78dd8e79b5b1662bda896c5d2ffe \
     --hash=sha256:c4ea7e258a244858daf18474625e9cc0149b8ee354f37843415771a40c25ee06
     # via
-    #   -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    #   -r requirements.in
     #   opentelemetry-exporter-prometheus
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
 opentelemetry-exporter-prometheus==0.56b0 \
     --hash=sha256:0a7d8952e2938f830deb5000505eecf20416ef25fdb591753b9b0cb91d9560ea \
     --hash=sha256:c783146b66400269783b773c5ccedf7d2ff140271478e2816202930a14c07c6b
-    # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    # via -r requirements.in
 opentelemetry-sdk==1.35.0 \
     --hash=sha256:223d9e5f5678518f4842311bb73966e0b6db5d1e0b74e35074c052cd2487f800 \
     --hash=sha256:2a400b415ab68aaa6f04e8a6a9f6552908fb3090ae2ff78d6ae0c597ac581954
     # via
-    #   -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    #   -r requirements.in
     #   opentelemetry-exporter-prometheus
 opentelemetry-semantic-conventions==0.56b0 \
     --hash=sha256:c114c2eacc8ff6d3908cb328c811eaf64e6d68623840be9224dc829c4fd6c2ea \
@@ -547,7 +547,7 @@ pandas==2.3.1 \
 pathling==7.2.0 \
     --hash=sha256:e024510d2d6296bdec4f3e5de93f8b0656317c6d06102026fe44c67602cb3635 \
     --hash=sha256:e2bdc54b02c6a333dcbd96910b4c5eb3530aec852e4ae73e77e67b871f011676
-    # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    # via -r requirements.in
 pluggy==1.6.0 \
     --hash=sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3 \
     --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
@@ -661,7 +661,7 @@ pygments==2.19.2 \
 pyspark==3.5.6 \
     --hash=sha256:f8b1c4360e41ab398c64904fae08740503bcb6bd389457d659fa6d9f2952cc48
     # via
-    #   -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    #   -r requirements.in
     #   delta-spark
     #   pathling
 pytest==8.4.1 \
@@ -703,7 +703,7 @@ six==1.17.0 \
 tenacity==9.1.2 \
     --hash=sha256:1169d376c297e7de388d18b4481760d478b0e99a777cad3a9c86e556f4b697cb \
     --hash=sha256:f77bf36710d8b73a50b2dd155c97b870017ad21afe6ab300326b0371b3b05138
-    # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    # via -r requirements.in
 testcontainers[minio]==4.12.0 \
     --hash=sha256:13ee89cae995e643f225665aad8b200b25c4f219944a6f9c0b03249ec3f31b8d \
     --hash=sha256:26caef57e642d5e8c5fcc593881cf7df3ab0f0dc9170fad22765b184e226ab15
@@ -741,11 +741,11 @@ tomli==2.2.1 \
     --hash=sha256:e85e99945e688e32d5a35c1ff38ed0b3f41f43fad8df0bdf79f72b2ba7bc5272 \
     --hash=sha256:ece47d672db52ac607a3d9599a9d48dcb2f2f735c6c2d1f34130085bb12b112a \
     --hash=sha256:f4039b9cbc3048b2416cc57ab3bda989a6fcf9b36cf8937f01a6e731b64f80d7
-    # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
-typed-settings[attrs]==24.6.0 \
-    --hash=sha256:22221598a821395700beaafd8eab0e1bc596b394767aa37e0926c5f74d0b6a62 \
-    --hash=sha256:9a5595de33f80452a2038e018bc45508fffc238a8752f08f5c03dc8e7bc0d1e2
-    # via -r /home/gulch/proj/github/bzkf/fhir-to-lakehouse/requirements.in
+    # via -r requirements.in
+typed-settings[attrs]==25.0.0 \
+    --hash=sha256:29bafd31cd4f5e00fe380c3f003a771d70beae700970512a8e55f142aff5c113 \
+    --hash=sha256:d95ec61a7f8109f91b6bb910237cd801e5d861face2bf09e6563a6a76637fc63
+    # via -r requirements.in
 typing-extensions==4.14.1 \
     --hash=sha256:38b39f4aeeab64884ce9f74c94263ef78f3c22467c8724005483154c26648d36 \
     --hash=sha256:d1e1e3b58374dc93031d6eda2420a48ea44a36c2b4766a4fdeb3710755731d76
