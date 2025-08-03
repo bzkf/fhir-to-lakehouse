@@ -11,6 +11,7 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-24.04
+    name: release please
     permissions:
       contents: write
       pull-requests: write
