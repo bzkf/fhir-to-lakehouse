@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.12.2](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.12.1...v1.12.2) (2025-08-03)
+
+
+### Miscellaneous Chores
+
+* dont update version in pyproject ([#83](https://github.com/bzkf/fhir-to-lakehouse/issues/83)) ([2b143c6](https://github.com/bzkf/fhir-to-lakehouse/commit/2b143c6582e65ec8c1021d6120427979f3b02ac0))
+
+
+### Build
+
+* switch to uv ([#81](https://github.com/bzkf/fhir-to-lakehouse/issues/81)) ([3ba36dc](https://github.com/bzkf/fhir-to-lakehouse/commit/3ba36dc2a6988eb5cbe9784a978ed64a10c87af4))
+
 ## [1.12.1](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.12.0...v1.12.1) (2025-07-23)
 
 
