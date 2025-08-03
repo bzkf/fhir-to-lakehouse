@@ -12,10 +12,6 @@
         {
           "type": "generic",
           "path": "README.md"
-        },
-        {
-          "type": "generic",
-          "path": "pyproject.toml"
         }
       ],
       "release-type": "simple",
