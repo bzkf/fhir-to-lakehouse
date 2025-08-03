@@ -37,6 +37,7 @@ jobs:
 
   unit-tests:
     runs-on: ubuntu-24.04
+    name: unit tests
     permissions:
       contents: read
     steps:
@@ -68,6 +69,7 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-24.04
+    name: integration tests
     permissions:
       contents: read
     needs:
