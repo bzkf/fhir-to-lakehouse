@@ -60,7 +60,7 @@ docker compose up
 and the program itself using
 
 ```sh
-python src/main.py
+uv run src/main.py
 ```
 
 ### Tests
@@ -68,7 +68,7 @@ python src/main.py
 #### Unit Tests
 
 ```sh
-pytest --cov=src tests/unit/
+uv run pytest --cov=src tests/unit/
 ```
 
 #### Integration Tests
@@ -85,7 +85,7 @@ helm upgrade --install --wait --set "stream-processors.enabled=true" --set "stre
 To run the integration tests
 
 ```sh
-pytest tests/integration
+uv run pytest tests/integration
 ```
 
 To check the table counts
