@@ -5,7 +5,7 @@ description = "Reads FHIR bundles from Kafka, encodes them using the Pathling en
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "pyspark==3.5.6",
+    "pyspark==4.0.0",
     "pathling==7.2.0",
     "delta-spark==3.3.2",
     "typed-settings[attrs]==25.0.0",
