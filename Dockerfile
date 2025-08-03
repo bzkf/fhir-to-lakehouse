@@ -7,6 +7,7 @@ ENV UV_LINK_MODE=copy \
 
 WORKDIR /app
 
+# hadolint ignore=DL3008
 RUN <<EOF
 set -e
 apt-get update -y
