@@ -1,6 +1,6 @@
 [project]
 name = "fhir-to-lakehouse"
-version = "1.12.1" # x-release-please-version
+version = "1"
 description = "Reads FHIR bundles from Kafka, encodes them using the Pathling encoders, and stores them as Delta Lake tables."
 readme = "README.md"
 requires-python = ">=3.13"
