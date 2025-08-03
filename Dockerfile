@@ -2,7 +2,8 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim@sha256:b93f8bbb995fa6469a4097
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    METRICS_ADDR=0.0.0.0
+    METRICS_ADDR=0.0.0.0 \
+    SPARK_CONF_DIR=/app/spark/conf
 
 WORKDIR /app
 

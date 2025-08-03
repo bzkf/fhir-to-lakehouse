@@ -28,6 +28,11 @@ and start the application with the env var `FHIR_TO_LAKEHOUSE_SETTINGS` pointing
 FHIR_TO_LAKEHOUSE_SETTINGS=settings.toml python src/main.py
 ```
 
+### Spark Config
+
+By default, the `SPARK_CONF_DIR` environment variable inside the container is set to `/app/spark/conf`, so you
+can mount a `spark-defaults.conf` file at `/app/spark/conf/spark-defaults.conf` to override any Spark setting.
+
 ## Lakehousekeeper
 
 A CLI tool called `lakehousekeeper` is also part of the container distribution.
@@ -77,6 +82,10 @@ Currently, running these tests outside of the CI requires some manual effort:
 
 ```sh
 kind create cluster --config=tests/integration/kind-config.yaml
+
+docker build -t ghcr.io/bzkf/fhir-to-lakehouse:test .
+kind load docker-image ghcr.io/bzkf/fhir-to-lakehouse:test
+
 helm dep up tests/integration/fixtures/
 helm upgrade --install --wait fixtures tests/integration/fixtures/
 helm upgrade --install --wait --set "stream-processors.enabled=true" --set "stream-processors.processors.fhir-to-delta.container.image.tag=test" fixtures tests/integration/fixtures/
