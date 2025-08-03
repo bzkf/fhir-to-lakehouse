@@ -1,0 +1,30 @@
+[project]
+name = "fhir-to-lakehouse"
+version = "1.12.1" # x-release-please-version
+description = "Reads FHIR bundles from Kafka, encodes them using the Pathling encoders, and stores them as Delta Lake tables."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pyspark==3.5.6",
+    "pathling==7.2.0",
+    "delta-spark==3.3.2",
+    "typed-settings[attrs]==24.6.0",
+    "loguru==0.7.3",
+    "opentelemetry-api==1.35.0",
+    "opentelemetry-sdk==1.35.0",
+    "opentelemetry-exporter-prometheus==0.56b0",
+    "tenacity==9.1.2",
+    "tomli==2.2.1",
+    "click==8.2.1",
+    "deltalake[pyarrow]==1.1.0",
+    "boto3==1.39.11",
+]
+
+[dependency-groups]
+dev = [
+    "kafka-python==2.2.15",
+    "pandas==2.3.1",
+    "pytest==8.4.1",
+    "pytest-cov==6.2.1",
+    "testcontainers[minio]==4.12.0",
+]

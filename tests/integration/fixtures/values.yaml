@@ -9,8 +9,8 @@ stream-processors:
         - ALL
     readOnlyRootFilesystem: false
     runAsNonRoot: true
-    runAsUser: 185
-    runAsGroup: 185
+    runAsUser: 65532
+    runAsGroup: 65532
     seccompProfile:
       type: RuntimeDefault
   processors:
@@ -45,7 +45,7 @@ stream-processors:
                 key: "root-password"
         extraVolumeMounts:
           - name: spark-conf
-            mountPath: /opt/spark/conf
+            mountPath: /app/spark/conf
             readOnly: true
       extraVolumes:
         - name: spark-conf

@@ -1,0 +1,5 @@
+# seems like trivy can't handle heredoc syntax yet
+DS017
+
+# (LOW): Add HEALTHCHECK instruction in your Dockerfile
+AVD-DS-0026
