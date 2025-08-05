@@ -26,7 +26,7 @@ services:
       - 127.0.0.1:9094:9094
 
   kafbat-ui:
-    image: ghcr.io/kafbat/kafka-ui:v1.2.0@sha256:185da4ad3e88538a0f4da067f4c7bb23aa0efa608c74d115f0876919b5d3a91b
+    image: ghcr.io/kafbat/kafka-ui:v1.3.0@sha256:edd59f51a992cf79c16a394fd141a6ab47eb9c1deeb77a3e360035ac3e7bc30c
     ipc: none
     security_opt:
       - "no-new-privileges:true"
@@ -43,7 +43,7 @@ services:
       - 127.0.0.1:8084:8080
 
   minio:
-    image: docker.io/bitnami/minio:2025.7.18@sha256:7ca49beb7c158c93dccf45105e98a5395e1c54a3cb7b82cd806e3821daa25701
+    image: docker.io/bitnami/minio:2025.7.23@sha256:8935e75fa5d11295c17171e4aa49efe390a1193cd7f12e4d21b92af9ffef09d7
     environment:
       MINIO_UPDATE: "off"
       MINIO_CALLHOME_ENABLE: "off"

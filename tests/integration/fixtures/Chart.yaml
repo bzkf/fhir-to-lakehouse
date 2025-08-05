@@ -11,11 +11,11 @@ dependencies:
     version: 0.47.0
   - name: stream-processors
     repository: oci://ghcr.io/miracum/charts
-    version: 1.10.3
+    version: 1.11.0
     condition: stream-processors.enabled
   - name: minio
     repository: oci://registry-1.docker.io/bitnamicharts
-    version: 17.0.15
+    version: 17.0.16
   - name: akhq
     condition: akhq.enabled
     repository: https://akhq.io/
