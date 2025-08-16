@@ -40,7 +40,7 @@ set_meter_provider(MeterProvider(metric_readers=[reader]))
 # other config can be set via $SPARK_HOME/conf/spark-defaults.conf,
 # e.g. compression type.
 spark_config = (
-    SparkSession.builder.master(settings.spark.master) # type: ignore
+    SparkSession.builder.master(settings.spark.master)  # type: ignore
     .appName("fhir_to_lakehouse")
     .config(
         "spark.jars.packages",
@@ -166,7 +166,11 @@ for resource_type in settings.resource_types_to_process_in_parallel:
             "checkpointLocation", settings.spark.checkpoint_dir + f"/{resource_type}"
         )
         .queryName(query_name)
-        .foreachBatch(lambda df, batch_id, qn=query_name: processor.process_batch(df, batch_id, qn))
+        .foreachBatch(
+            lambda df, batch_id, qn=query_name: processor.process_batch(
+                df, batch_id, qn
+            )
+        )
         .trigger(processingTime=settings.spark.streaming_processing_time)
         .start()
     )

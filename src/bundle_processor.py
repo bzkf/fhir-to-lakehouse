@@ -81,7 +81,7 @@ class BundleProcessor:
             logger.info(
                 "Processing batch {batch_id} containing {batch_size} rows",
                 batch_id=batch_id,
-                batch_size=micro_batch_df.count()
+                batch_size=micro_batch_df.count(),
             )
 
             if micro_batch_df.isEmpty():
@@ -106,7 +106,7 @@ class BundleProcessor:
                     f"resource_type = '{resource_type}'"
                 )
 
-                # see also <https://stackoverflow.com/questions/38687212/spark-dataframe-drop-duplicates-and-keep-first>
+                # see also <https://stackoverflow.com/a/54738843>
                 # Window to get the latest message per request_url
                 # whether the partition is sorted asc or desc isn't really relevant
                 window = Window.partitionBy("request_url").orderBy(
@@ -216,7 +216,7 @@ class BundleProcessor:
     @retry(
         wait=wait_exponential(multiplier=1, min=5, max=30),
         stop=stop_after_attempt(5),
-        before_sleep=before_sleep_log(logger, logging.WARN), # type: ignore
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
     )
     def _merge_into_table(
         self, resource_df: DataFrame, resource_type: str, delta_table: DeltaTable
@@ -244,7 +244,7 @@ class BundleProcessor:
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=10),
         stop=stop_after_attempt(5),
-        before_sleep=before_sleep_log(logger, logging.WARN), # type: ignore
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
     )
     def _delete_from_table(
         self,
@@ -274,7 +274,7 @@ class BundleProcessor:
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=10),
         stop=stop_after_attempt(5),
-        before_sleep=before_sleep_log(logger, logging.WARN), # type: ignore
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
     )
     def _optimize_and_vacuum_table(self, delta_table: DeltaTable, resource_type: str):
         logger.info("Optimizing and vacuuming table")
@@ -301,7 +301,7 @@ class BundleProcessor:
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=10),
         stop=stop_after_attempt(5),
-        before_sleep=before_sleep_log(logger, logging.WARN), # type: ignore
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
     )
     def _register_table_in_metastore(self, table: DeltaTable, table_path: str):
         logger.info(
