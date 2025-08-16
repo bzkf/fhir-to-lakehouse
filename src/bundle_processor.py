@@ -75,7 +75,7 @@ class BundleProcessor:
 
         return df_result
 
-    def process_batch(self, micro_batch_df: DataFrame, batch_id: int, query_name: str):
+    def process_batch(self, micro_batch_df: DataFrame, batch_id: int, query_name: str = "default"):
         with logger.contextualize(batch_id=batch_id, query_name=query_name):
             # might not be super efficient to log the batch size
             logger.info(
