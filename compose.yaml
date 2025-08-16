@@ -67,6 +67,28 @@ services:
       - "127.0.0.1:9001:9001"
       - "127.0.0.1:9000:9000"
 
+  wait-for-minio:
+    image: docker.io/curlimages/curl:8.14.1@sha256:9a1ed35addb45476afa911696297f8e115993df459278ed036182dd2cd22b67b
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: "no"
+    environment:
+      AWS_ENDPOINT_URL: http://minio:9000
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until [ "$(curl -s -o /dev/null -L -w "%{http_code}" "$$AWS_ENDPOINT_URL/minio/health/live")" == "200" ]; do
+            echo "$(date): Waiting for minio server @ $$AWS_ENDPOINT_URL to be up";
+            sleep 5;
+        done;
+    depends_on:
+      minio:
+        condition: service_started
+
   createbucket:
     image: docker.io/minio/minio:RELEASE.2025-07-23T15-54-02Z@sha256:d249d1fb6966de4d8ad26c04754b545205ff15a62e4fd19ebd0f26fa5baacbc0
     restart: on-failure
@@ -77,14 +99,13 @@ services:
     security_opt:
       - "no-new-privileges:true"
     depends_on:
-      - minio
+      - wait-for-minio
     entrypoint: ["/bin/bash", "-c"]
-    command: [
+    command:
+      - |
         sleep 5;
         /usr/bin/mc alias set minio http://minio:9000 admin miniopass;
         /usr/bin/mc mb minio/fhir;
-        exit 0;,
-      ]
 
   mock-data-loader:
     image: docker.io/confluentinc/cp-kafkacat:7.1.16@sha256:ce6f7079c7463572e62a8fbf0fa2af124e2687f679e64966081d6b339a604b10
