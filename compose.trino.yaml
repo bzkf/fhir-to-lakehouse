@@ -1,7 +1,7 @@
 # kics-scan ignore
 services:
   metastore-db:
-    image: docker.io/library/postgresql:17.6@sha256:a7fdfd815005ea658281c60b06020f49ab8a6bbe21434d3a59fe14654f6d4293
+    image: docker.io/library/postgres:17.6@sha256:a7fdfd815005ea658281c60b06020f49ab8a6bbe21434d3a59fe14654f6d4293
     ipc: private
     security_opt:
       - "no-new-privileges:true"
