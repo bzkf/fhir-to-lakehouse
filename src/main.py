@@ -40,7 +40,7 @@ set_meter_provider(MeterProvider(metric_readers=[reader]))
 # other config can be set via $SPARK_HOME/conf/spark-defaults.conf,
 # e.g. compression type.
 spark_config = (
-    SparkSession.builder.master(settings.spark.master)
+    SparkSession.builder.master(settings.spark.master)  # type: ignore
     .appName("fhir_to_lakehouse")
     .config(
         "spark.jars.packages",
@@ -158,13 +158,19 @@ df_result = processor.prepare_stream(df)
 for resource_type in settings.resource_types_to_process_in_parallel:
     filtered_df = df_result.filter(F.col("resource_type") == resource_type)
 
+    query_name = f"process_{resource_type}"
+
     (
         filtered_df.writeStream.outputMode(settings.spark.output_mode)
         .option(
             "checkpointLocation", settings.spark.checkpoint_dir + f"/{resource_type}"
         )
-        .queryName(f"process_{resource_type}")
-        .foreachBatch(processor.process_batch)
+        .queryName(query_name)
+        .foreachBatch(
+            lambda df, batch_id, qn=query_name: processor.process_batch(
+                df, batch_id, qn
+            )
+        )
         .trigger(processingTime=settings.spark.streaming_processing_time)
         .start()
     )
@@ -177,7 +183,7 @@ default_df = df_result.filter(
     default_df.writeStream.outputMode(settings.spark.output_mode)
     .option("checkpointLocation", settings.spark.checkpoint_dir + "/default")
     .queryName("process_default")
-    .foreachBatch(processor.process_batch)
+    .foreachBatch(lambda df, batch_id: processor.process_batch(df, batch_id, "default"))
     .trigger(processingTime=settings.spark.streaming_processing_time)
     .start()
 )

@@ -1,0 +1,17 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "0",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "0"
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Patient/0"
+      }
+    }
+  ]
+}

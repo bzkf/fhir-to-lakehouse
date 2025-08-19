@@ -4,7 +4,7 @@ import os
 from delta import DeltaTable
 from loguru import logger
 from pathling import PathlingContext
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 from tenacity import (
@@ -75,8 +75,10 @@ class BundleProcessor:
 
         return df_result
 
-    def process_batch(self, micro_batch_df: DataFrame, batch_id: int):
-        with logger.contextualize(batch_id=batch_id):
+    def process_batch(
+        self, micro_batch_df: DataFrame, batch_id: int, query_name: str = "default"
+    ):
+        with logger.contextualize(batch_id=batch_id, query_name=query_name):
             # might not be super efficient to log the batch size
             logger.info(
                 "Processing batch {batch_id} containing {batch_size} rows",
@@ -102,14 +104,29 @@ class BundleProcessor:
             # should only ever be one resource_type in the batch.
             # In the default case, the batch may contain multiple resource types.
             for resource_type in resource_types_in_batch:
-                # TODO: double-check if the sorting here is correct
                 resource_df = micro_batch_df.filter(
                     f"resource_type = '{resource_type}'"
-                ).sort(["timestamp", "partition", "offset"], ascending=False)
+                )
+
+                # see also <https://stackoverflow.com/a/54738843>
+                # Window to get the latest message per request_url
+                # whether the partition is sorted asc or desc isn't really relevant
+                window = Window.partitionBy("request_url").orderBy(
+                    F.col("partition").asc(), F.col("offset").desc()
+                )
+
+                # only returns the latest (first) row entry per request_url
+                # so if there's both a DELETE and a PUT in the batch and the DELETE
+                # is ordered after the PUT, then only the DELETE is returned
+                only_latest_df = (
+                    resource_df.withColumn("row_num", F.row_number().over(window))
+                    .filter(F.col("row_num") == 1)
+                    .drop("row_num")
+                )
 
                 with logger.contextualize(resource_type=resource_type):
                     self._process_df_of_single_resource_type(
-                        resource_df, resource_type, batch_id
+                        only_latest_df, resource_type, batch_id
                     )
                     logger.info("Finished processing resource batch")
 
@@ -118,9 +135,7 @@ class BundleProcessor:
     def _process_df_of_single_resource_type(
         self, single_resource_type_df: DataFrame, resource_type: str, batch_id: int
     ):
-        put_df = single_resource_type_df.filter(
-            "request_method = 'PUT'"
-        ).drop_duplicates(["request_url"])
+        put_df = single_resource_type_df.filter("request_method = 'PUT'")
 
         resource_df = self.pc.encode(
             put_df,
@@ -187,9 +202,7 @@ class BundleProcessor:
         ):
             self._merge_into_table(resource_df, resource_type, delta_table)
 
-        delete_df = single_resource_type_df.filter(
-            "request_method = 'DELETE'"
-        ).drop_duplicates(["request_url"])
+        delete_df = single_resource_type_df.filter("request_method = 'DELETE'")
 
         if delete_df.count() > 0:
             with MeasureElapsed(
@@ -205,7 +218,7 @@ class BundleProcessor:
     @retry(
         wait=wait_exponential(multiplier=1, min=5, max=30),
         stop=stop_after_attempt(5),
-        before_sleep=before_sleep_log(logger, logging.WARN),
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
     )
     def _merge_into_table(
         self, resource_df: DataFrame, resource_type: str, delta_table: DeltaTable
@@ -233,7 +246,7 @@ class BundleProcessor:
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=10),
         stop=stop_after_attempt(5),
-        before_sleep=before_sleep_log(logger, logging.WARN),
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
     )
     def _delete_from_table(
         self,
@@ -263,7 +276,7 @@ class BundleProcessor:
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=10),
         stop=stop_after_attempt(5),
-        before_sleep=before_sleep_log(logger, logging.WARN),
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
     )
     def _optimize_and_vacuum_table(self, delta_table: DeltaTable, resource_type: str):
         logger.info("Optimizing and vacuuming table")
@@ -290,7 +303,7 @@ class BundleProcessor:
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=10),
         stop=stop_after_attempt(5),
-        before_sleep=before_sleep_log(logger, logging.WARN),
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
     )
     def _register_table_in_metastore(self, table: DeltaTable, table_path: str):
         logger.info(

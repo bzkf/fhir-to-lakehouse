@@ -275,3 +275,100 @@ def test_liquid_clustering(pathling_fixture, tmp_path):
 
     assert dt.toDF().count() == 1
     assert dt.toDF().first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+
+
+def test_batch_with_put_and_delete_should_only_retain_latest(
+    pathling_fixture, tmp_path
+):
+    # it might be easiert to just hard-code the data here vs reading from files
+    data = [
+        {
+            "key": "0",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/put-0.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 0,
+            "offset": 0,
+        },
+        {
+            "key": "1",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/put-1.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 1,
+            "offset": 0,
+        },
+        {
+            "key": "2",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/put-2.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 0,
+            "offset": 0,
+        },
+        {
+            "key": "1",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/delete-1.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 1,
+            "offset": 1,
+        },
+        {
+            "key": "1",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/put-1.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 1,
+            "offset": 2,
+        },
+        {
+            "key": "1",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/delete-1.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 1,
+            "offset": 3,
+        },
+        {
+            "key": "1",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/put-2-newer.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 0,
+            "offset": 99,
+        },
+    ]
+
+    df = pathling_fixture.spark.createDataFrame(data)
+
+    d = tmp_path / "warehouse" / "data"
+    settings = Settings(
+        delta_database_dir=d.as_posix(),
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+    )
+
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
+
+    bp.process_batch(df, 1)
+
+    dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
+
+    assert dt.toDF().count() == 2
+    # <https://stackoverflow.com/a/38611657>
+    assert [str(row["id"]) for row in dt.toDF().collect()] == ["0", "2"]
+
+    assert (
+        dt.toDF().where("id = 2 and active = false").count() == 1
+    ), "Expected patient 2 to have active=false after the latest PUT request"
