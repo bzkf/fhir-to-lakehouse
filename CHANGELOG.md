@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.12.3](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.12.2...v1.12.3) (2025-08-19)
+
+
+### Bug Fixes
+
+* correct in-batch message ordering and use a window function to get the latest message per id/request_url ([#90](https://github.com/bzkf/fhir-to-lakehouse/issues/90)) ([4a4d0b7](https://github.com/bzkf/fhir-to-lakehouse/commit/4a4d0b7dd3631514b2677cb5cbf2d1e48cf9f63a))
+* **deps:** update all non-major dependencies ([#80](https://github.com/bzkf/fhir-to-lakehouse/issues/80)) ([ec7cb38](https://github.com/bzkf/fhir-to-lakehouse/commit/ec7cb3856bd059f09fb65a22adb96955624916d0))
+* **deps:** update dependency typed-settings to v25 ([#84](https://github.com/bzkf/fhir-to-lakehouse/issues/84)) ([4f5bd93](https://github.com/bzkf/fhir-to-lakehouse/commit/4f5bd9322b2826b757da8f1012e026892aae4cf2))
+
+
+### Miscellaneous Chores
+
+* **deps:** update github-actions ([#79](https://github.com/bzkf/fhir-to-lakehouse/issues/79)) ([4a35930](https://github.com/bzkf/fhir-to-lakehouse/commit/4a35930f36a9da44d331848ff1606a3adca4279d))
+
 ## [1.12.2](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.12.1...v1.12.2) (2025-08-03)
 
 
