@@ -7,7 +7,7 @@
       "resource": {
         "resourceType": "Patient",
         "id": "2",
-        "active": false
+        "active": true
       },
       "request": {
         "method": "PUT",
