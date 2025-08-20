@@ -337,12 +337,12 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
             "offset": 3,
         },
         {
-            "key": "1",
+            "key": "2",
             "value": (
                 HERE / "fixtures/resources/batches/put-and-delete/put-2-newer.json"
             ).read_text(),
             "timestamp": datetime.datetime.now(),
-            "partition": 1,
+            "partition": 0,
             "offset": 99,
         },
     ]
