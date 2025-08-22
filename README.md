@@ -49,6 +49,12 @@ docker run --rm -it ghcr.io/bzkf/fhir-to-lakehouse:v1.12.3 /opt/fhir-to-lakehous
 
 ## Development
 
+Install dependencies using
+
+```sh
+uv sync
+```
+
 The [compose.yaml](compose.yaml) contains the development fixtures required to run the program out-of-the-box:
 
 - Apache Kafka (Exposed on <127.0.0.1:9094>)

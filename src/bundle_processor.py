@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -78,12 +79,14 @@ class BundleProcessor:
     def process_batch(
         self, micro_batch_df: DataFrame, batch_id: int, query_name: str = "default"
     ):
-        with logger.contextualize(batch_id=batch_id, query_name=query_name):
+        batch_size = micro_batch_df.count()
+        with logger.contextualize(
+            batch_id=batch_id, query_name=query_name, batch_size=batch_size
+        ):
             # might not be super efficient to log the batch size
             logger.info(
-                "Processing batch {batch_id} containing {batch_size} rows",
+                "Processing batch {batch_id}",
                 batch_id=batch_id,
-                batch_size=micro_batch_df.count(),
             )
 
             if micro_batch_df.isEmpty():
@@ -123,6 +126,25 @@ class BundleProcessor:
                     .filter(F.col("row_num") == 1)
                     .drop("row_num")
                 )
+
+                if self.settings.log_resource_count_by_source_topic:
+                    topic_counts = only_latest_df.groupBy("topic").count()
+                    # topic_counts.toJSON() turns each row in the DF into a JSON
+                    # string as a single column
+                    # .collect() turns this into a list of JSON strings
+                    # json.loads converts each JSON string into a Python dict
+                    # so we can log it nicely
+                    # The only difference is that the structured log part is a
+                    # list of dicts instead of a single string
+                    # 'topic_counts': [{'topic': 'fhir.msg', 'count': 47175}]
+                    # instead of
+                    # 'topic_counts': ['{"topic": "fhir.msg", "count": 47175}']
+                    logger.info(
+                        "Batch resource counts by source topic: {topic_counts}",
+                        topic_counts=list(
+                            map(json.loads, topic_counts.toJSON().collect())
+                        ),
+                    )
 
                 with logger.contextualize(resource_type=resource_type):
                     self._process_df_of_single_resource_type(
