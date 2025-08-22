@@ -1,6 +1,6 @@
+import json
 import logging
 import os
-import json
 
 from delta import DeltaTable
 from loguru import logger
