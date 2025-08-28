@@ -63,6 +63,9 @@ class Settings:
     metrics_port: int = 8000
     metrics_addr: str = "127.0.0.1"
     metastore_url: str = ""
+    # if enabled, log the number of resources per Kafka
+    # topic per batch
+    log_resource_count_by_source_topic: bool = False
     resource_types_to_process_in_parallel: list[str] = [
         "Patient",
         "Observation",
