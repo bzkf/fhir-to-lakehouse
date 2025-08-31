@@ -386,7 +386,7 @@ requires-dist = [
     { name = "opentelemetry-api", specifier = "==1.36.0" },
     { name = "opentelemetry-exporter-prometheus", specifier = "==0.57b0" },
     { name = "opentelemetry-sdk", specifier = "==1.36.0" },
-    { name = "pathling", specifier = "==7.2.0" },
+    { name = "pathling", specifier = "==8.0.0" },
     { name = "pyspark", specifier = "==3.5.6" },
     { name = "tenacity", specifier = "==9.1.2" },
     { name = "tomli", specifier = "==2.2.1" },
@@ -667,15 +667,15 @@ wheels = [
 
 [[package]]
 name = "pathling"
-version = "7.2.0"
+version = "8.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "deprecated" },
     { name = "pyspark" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/31/05a1a7b9b31f2120eef41a1842ea9079664cca540a78068421ec5db7410d/pathling-7.2.0.tar.gz", hash = "sha256:e2bdc54b02c6a333dcbd96910b4c5eb3530aec852e4ae73e77e67b871f011676", size = 61318, upload-time = "2025-03-05T04:13:34.379Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7a/c0/8432fbeaed366dc0c59edf000b2a8c469a34fc14db034eec133b6325c667/pathling-8.0.0.tar.gz", hash = "sha256:ddb3c66730796326ea59dee46ea6cc86609390fe27daf3f8f657cef0129e4db8", size = 63855, upload-time = "2025-08-28T22:36:23.994Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d1/fb/00b0f2aa44e0504ea11be315889871f641f3b35bf5ee85d4b202055f4f59/pathling-7.2.0-py2.py3-none-any.whl", hash = "sha256:e024510d2d6296bdec4f3e5de93f8b0656317c6d06102026fe44c67602cb3635", size = 71574, upload-time = "2025-03-05T04:13:32.615Z" },
+    { url = "https://files.pythonhosted.org/packages/67/1b/1dffd609d5640c53256544da132f23cdfdf71da6e529bde8d87a6342dfe6/pathling-8.0.0-py2.py3-none-any.whl", hash = "sha256:61e75f00dff63fcb8fcaa7d7a5159c14c7089c17bdad765a60e0c738c83a253c", size = 69555, upload-time = "2025-08-28T22:36:22.554Z" },
 ]
 
 [[package]]
