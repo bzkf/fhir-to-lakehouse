@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim@sha256:331195201d60ef31747ed768b6f4b8acc8053477a917432566813ad9005c76a5
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim@sha256:5b651a2084b59293d8a9327a5b91b2779c955ebeac9bfd40f95fe91e9bc06c43
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     PYTHONUNBUFFERED=1 \
