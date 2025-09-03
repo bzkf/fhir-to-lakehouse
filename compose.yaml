@@ -25,6 +25,22 @@ services:
     ports:
       - 127.0.0.1:9094:9094
 
+  wait-for-kafka:
+    image: ghcr.io/wait4x/wait4x:3.5.1@sha256:52e6791d4d8b8c80b2106e4d4f1e44ee69477c6dd461bdeb1aae2db6ccd5d038
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: "no"
+    command:
+      - kafka
+      - kafka://kafka:9092
+    depends_on:
+      kafka:
+        condition: service_started
+
   akhq:
     image: docker.io/tchiotludo/akhq:0.26.0@sha256:833f9c3c32786e06c858589b2b1655a60caf3ca235c840308ad5754414945dd0
     restart: unless-stopped
@@ -44,7 +60,8 @@ services:
     ports:
       - "8084:8080"
     depends_on:
-      - kafka
+      wait-for-kafka:
+        condition: service_completed_successfully
 
   minio:
     image: docker.io/minio/minio:RELEASE.2025-07-23T15-54-02Z@sha256:d249d1fb6966de4d8ad26c04754b545205ff15a62e4fd19ebd0f26fa5baacbc0
@@ -98,13 +115,14 @@ services:
     ipc: none
     security_opt:
       - "no-new-privileges:true"
-    depends_on:
-      - wait-for-minio
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
         /usr/bin/mc alias set minio http://minio:9000 admin miniopass;
-        /usr/bin/mc mb minio/fhir;
+        /usr/bin/mc mb --ignore-existing minio/fhir;
+    depends_on:
+      wait-for-minio:
+        condition: service_completed_successfully
 
   mock-data-loader:
     image: docker.io/confluentinc/cp-kafkacat:7.1.16@sha256:ce6f7079c7463572e62a8fbf0fa2af124e2687f679e64966081d6b339a604b10
@@ -124,5 +142,5 @@ services:
     volumes:
       - ./data/bundles.ndjson:/data/bundles.ndjson:ro
     depends_on:
-      kafka:
-        condition: service_started
+      wait-for-kafka:
+        condition: service_completed_successfully
