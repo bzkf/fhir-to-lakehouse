@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.13.1](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.0...v1.13.1) (2025-09-03)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#92](https://github.com/bzkf/fhir-to-lakehouse/issues/92)) ([79f4491](https://github.com/bzkf/fhir-to-lakehouse/commit/79f44911051d3b1e58addc0e55ff5e3832f42ac4))
+
+
+### Miscellaneous Chores
+
+* **deps:** update ghcr.io/astral-sh/uv:python3.13-bookworm-slim docker digest to 5b651a2 ([#100](https://github.com/bzkf/fhir-to-lakehouse/issues/100)) ([31a218d](https://github.com/bzkf/fhir-to-lakehouse/commit/31a218d0c4abad20d048184de4a2120e09d728d8))
+* **deps:** update github-actions ([#101](https://github.com/bzkf/fhir-to-lakehouse/issues/101)) ([ce7be75](https://github.com/bzkf/fhir-to-lakehouse/commit/ce7be759b41b74afcbbb48bdcc570e6ed771dfa0))
+* updated to pathling v8, fixed trino setup, and improved dev setup ([#99](https://github.com/bzkf/fhir-to-lakehouse/issues/99)) ([41f91bd](https://github.com/bzkf/fhir-to-lakehouse/commit/41f91bd08def230fb47e01582b9404da426b6f27))
+
 ## [1.13.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.12.3...v1.13.0) (2025-08-28)
 
 
