@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.13.2](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.1...v1.13.2) (2025-09-04)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#103](https://github.com/bzkf/fhir-to-lakehouse/issues/103)) ([0333ccc](https://github.com/bzkf/fhir-to-lakehouse/commit/0333ccc6a61839bfcfd70c5dae8b39ba3124fcfd))
+
+
+### Miscellaneous Chores
+
+* **deps:** update ghcr.io/astral-sh/uv:python3.13-bookworm-slim docker digest to efe2350 ([#102](https://github.com/bzkf/fhir-to-lakehouse/issues/102)) ([ef579a3](https://github.com/bzkf/fhir-to-lakehouse/commit/ef579a31539491abf09a4f9a2cf9cdc4d1a82503))
+
 ## [1.13.1](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.0...v1.13.1) (2025-09-03)
 
 
