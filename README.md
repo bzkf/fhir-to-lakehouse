@@ -49,6 +49,12 @@ docker run --rm -it ghcr.io/bzkf/fhir-to-lakehouse:v1.13.1 /opt/fhir-to-lakehous
 
 ## Development
 
+Install `uv` <https://docs.astral.sh/uv/getting-started/installation/#installation-methods>:
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
 Install dependencies using
 
 ```sh
