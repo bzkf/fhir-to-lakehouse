@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "pyspark==3.5.6",
-    "pathling==8.0.2",
+    "pathling==8.1.0",
     "delta-spark==3.3.2",
     "typed-settings[attrs]==25.0.0",
     "loguru==0.7.3",
@@ -15,9 +15,9 @@ dependencies = [
     "opentelemetry-exporter-prometheus==0.58b0",
     "tenacity==9.1.2",
     "tomli==2.2.1",
-    "click==8.2.1",
+    "click==8.3.0",
     "deltalake[pyarrow]==1.1.4",
-    "boto3==1.40.30",
+    "boto3==1.40.36",
 ]
 
 [dependency-groups]
@@ -27,7 +27,7 @@ dev = [
     "pytest==8.4.2",
     "pytest-cov==7.0.0",
     "testcontainers[minio]==4.13.0",
-    "black==25.1.0",
+    "black==25.9.0",
     "isort==6.0.1",
     "flake8==7.3.0"
 ]
