@@ -27,11 +27,21 @@ dev = [
     "pytest==8.4.2",
     "pytest-cov==7.0.0",
     "testcontainers[minio]==4.13.0",
-    "black==25.9.0",
-    "isort==6.0.1",
-    "flake8==7.3.0"
+    "ruff==0.13.2",
 ]
 
-[tool.isort]
-profile = "black"
-src_paths="src"
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]

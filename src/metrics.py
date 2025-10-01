@@ -113,9 +113,9 @@ class KafkaOffsetTrackingStreamingQueryListener(StreamingQueryListener):
                     )
 
     def _update_kafka_offsets(self, type: str, query_name: str, str_offsets: str):
-        start_offset = json.loads(str_offsets)
-        for topic, offset in start_offset.items():
-            for partition, offset in offset.items():
+        start_offsets = json.loads(str_offsets)
+        for topic, start_offset in start_offsets.items():
+            for partition, offset in start_offset.items():
                 self.query_kafka_offsets.set(
                     offset,
                     {
