@@ -1,7 +1,7 @@
 # kics-scan ignore
 services:
   metastore-db:
-    image: docker.io/library/postgres:17.6@sha256:feff5b24fedd610975a1f5e743c51a4b360437f4dc3a11acf740dcd708f413f6
+    image: docker.io/library/postgres:18.0@sha256:67a7c384da54fc55a3b5ad38e9853b76003603d12732c90af368b31bb1f2517f
     restart: unless-stopped
     environment:
       POSTGRES_USER: hive
