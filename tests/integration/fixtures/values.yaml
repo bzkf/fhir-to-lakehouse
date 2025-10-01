@@ -1,3 +1,7 @@
+global:
+  security:
+    allowInsecureImages: true
+
 stream-processors:
   enabled: false
   strimziClusterName: fhir-to-delta-kafka
@@ -53,6 +57,8 @@ stream-processors:
             name: "fixtures-spark-defaults-conf"
 
 minio:
+  image:
+    repository: bitnamilegacy/minio
   defaultBuckets: "spark-streaming-checkpoints,fhir"
   auth:
     rootUser: "admin"
