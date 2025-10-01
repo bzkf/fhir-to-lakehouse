@@ -52,14 +52,14 @@ def test_deploy_to_k8s_should_create_delta_tables():
         try:
             dt = DeltaTable(patient_table_path, storage_options=storage_options)
 
-            assert (
-                len(dt.to_pandas(columns=["id"])) == 121
-            ), "Unexpected number of rows in Patient table"
+            assert len(dt.to_pandas(columns=["id"])) == 121, (
+                "Unexpected number of rows in Patient table"
+            )
 
             dt = DeltaTable(condition_table_path, storage_options=storage_options)
-            assert (
-                len(dt.to_pandas(columns=["id"])) == 5416
-            ), "Unexpected number of rows in Condition table"
+            assert len(dt.to_pandas(columns=["id"])) == 5416, (
+                "Unexpected number of rows in Condition table"
+            )
             break
         except Exception as e:
             logger.warning(
