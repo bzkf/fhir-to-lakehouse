@@ -17,7 +17,7 @@ dependencies = [
     "tomli==2.2.1",
     "click==8.3.0",
     "deltalake[pyarrow]==1.1.4",
-    "boto3==1.40.42",
+    "boto3==1.40.45",
 ]
 
 [dependency-groups]
@@ -27,7 +27,7 @@ dev = [
     "pytest==8.4.2",
     "pytest-cov==7.0.0",
     "testcontainers[minio]==4.13.1",
-    "ruff==0.13.2",
+    "ruff==0.13.3",
 ]
 
 [tool.ruff.lint]
