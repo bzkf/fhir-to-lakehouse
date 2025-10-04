@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.13.3](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.2...v1.13.3) (2025-10-04)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#124](https://github.com/bzkf/fhir-to-lakehouse/issues/124)) ([debd9c5](https://github.com/bzkf/fhir-to-lakehouse/commit/debd9c5cbb91d2c4ab6ed3cf42b2eb119465d57b))
+
+
+### Miscellaneous Chores
+
+* **deps:** update all digest updates ([#122](https://github.com/bzkf/fhir-to-lakehouse/issues/122)) ([f974288](https://github.com/bzkf/fhir-to-lakehouse/commit/f97428863b185b738a1c00e9a4be4558c7b24464))
+* **deps:** update github/codeql-action action to v3.30.6 ([#123](https://github.com/bzkf/fhir-to-lakehouse/issues/123)) ([cbd6b3a](https://github.com/bzkf/fhir-to-lakehouse/commit/cbd6b3a3deb1730fdb490958890bf938d118ee3d))
+
 ## [1.13.2](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.1...v1.13.2) (2025-10-01)
 
 
