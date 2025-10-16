@@ -59,6 +59,9 @@ stream-processors:
 minio:
   image:
     repository: bitnamilegacy/minio
+  console:
+    image:
+      repository: bitnamilegacy/minio-object-browser
   defaultBuckets: "spark-streaming-checkpoints,fhir"
   auth:
     rootUser: "admin"
