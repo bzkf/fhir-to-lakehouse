@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.13.3](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.2...v1.13.3) (2025-10-16)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#124](https://github.com/bzkf/fhir-to-lakehouse/issues/124)) ([debd9c5](https://github.com/bzkf/fhir-to-lakehouse/commit/debd9c5cbb91d2c4ab6ed3cf42b2eb119465d57b))
+* **deps:** update all non-major dependencies ([#129](https://github.com/bzkf/fhir-to-lakehouse/issues/129)) ([8633a92](https://github.com/bzkf/fhir-to-lakehouse/commit/8633a924415fba7afbf440d0f7ec3fe6d28a5bcd))
+
+
+### Miscellaneous Chores
+
+* **deps:** update all digest updates ([#122](https://github.com/bzkf/fhir-to-lakehouse/issues/122)) ([f974288](https://github.com/bzkf/fhir-to-lakehouse/commit/f97428863b185b738a1c00e9a4be4558c7b24464))
+* **deps:** update ghcr.io/astral-sh/uv:python3.13-bookworm-slim docker digest to 9649b83 ([#126](https://github.com/bzkf/fhir-to-lakehouse/issues/126)) ([a16b368](https://github.com/bzkf/fhir-to-lakehouse/commit/a16b368b96f12e516df15d50102db68cdd8caf6c))
+* **deps:** update github-actions ([#128](https://github.com/bzkf/fhir-to-lakehouse/issues/128)) ([55d6060](https://github.com/bzkf/fhir-to-lakehouse/commit/55d606003dd24dcac4b66fdf31b331f152ee3dd0))
+* **deps:** update github/codeql-action action to v3.30.6 ([#123](https://github.com/bzkf/fhir-to-lakehouse/issues/123)) ([cbd6b3a](https://github.com/bzkf/fhir-to-lakehouse/commit/cbd6b3a3deb1730fdb490958890bf938d118ee3d))
+
 ## [1.13.2](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.1...v1.13.2) (2025-10-01)
 
 
