@@ -26,7 +26,7 @@ services:
       - 127.0.0.1:9094:9094
 
   wait-for-kafka:
-    image: ghcr.io/wait4x/wait4x:3.5.1@sha256:52e6791d4d8b8c80b2106e4d4f1e44ee69477c6dd461bdeb1aae2db6ccd5d038
+    image: ghcr.io/wait4x/wait4x:3.6.0@sha256:bec7ac18547781d854562c3729d3195c3880116d6758c49fdf4573ad58805f14
     ipc: none
     security_opt:
       - "no-new-privileges:true"
