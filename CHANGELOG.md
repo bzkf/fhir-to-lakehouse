@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.13.4](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.3...v1.13.4) (2025-10-28)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#132](https://github.com/bzkf/fhir-to-lakehouse/issues/132)) ([2e5b5d9](https://github.com/bzkf/fhir-to-lakehouse/commit/2e5b5d908886cd182dee701ee71a6f41387b24b0))
+* **deps:** update dependency pathling to v9 ([#136](https://github.com/bzkf/fhir-to-lakehouse/issues/136)) ([bb5b516](https://github.com/bzkf/fhir-to-lakehouse/commit/bb5b516df21e40bc8f08413f752bee60c2fa5acb))
+
+
+### Miscellaneous Chores
+
+* **deps:** update all digest updates ([#130](https://github.com/bzkf/fhir-to-lakehouse/issues/130)) ([039ccf5](https://github.com/bzkf/fhir-to-lakehouse/commit/039ccf595f09b6215413d8ed4b8ffd44b1baf79f))
+* **deps:** update astral-sh/setup-uv action to v7.1.2 ([#135](https://github.com/bzkf/fhir-to-lakehouse/issues/135)) ([feb0079](https://github.com/bzkf/fhir-to-lakehouse/commit/feb00799bfea8cbf9fdd98fb93212a7b773d2f91))
+* **deps:** update github-actions ([#131](https://github.com/bzkf/fhir-to-lakehouse/issues/131)) ([07e1a99](https://github.com/bzkf/fhir-to-lakehouse/commit/07e1a99865613f3fb52ad3fe445649fa99fcc010))
+* **deps:** update github-actions ([#133](https://github.com/bzkf/fhir-to-lakehouse/issues/133)) ([ee37b2a](https://github.com/bzkf/fhir-to-lakehouse/commit/ee37b2aed3742eaa6ee6400cc53ded8dc66a89a1))
+
 ## [1.13.3](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.2...v1.13.3) (2025-10-16)
 
 
