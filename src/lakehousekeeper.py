@@ -43,8 +43,8 @@ spark_builder = (
         "spark.jars.packages",
         ",".join(
             [
-                "io.delta:delta-spark_2.12:3.3.0",
-                "org.apache.hadoop:hadoop-aws:3.3.4",
+                "io.delta:delta-spark_2.13:4.0.0",
+                "org.apache.hadoop:hadoop-aws:3.4.1",
             ]
         ),
     )
