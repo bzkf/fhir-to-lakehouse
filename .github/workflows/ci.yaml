@@ -54,6 +54,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
+          java --version
           uv sync --locked --all-extras --dev
 
       - name: Run tests
