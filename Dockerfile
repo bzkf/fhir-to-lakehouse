@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim@sha256:60d8ee2c1f7ffce050822adcb44907514e39f29d2d7b37732e8fca9f4f6113af
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,7 +11,7 @@ WORKDIR /app
 RUN <<EOF
 set -e
 apt-get update -y
-apt-get install -y --no-install-recommends openjdk-17-jre-headless
+apt-get install -y --no-install-recommends openjdk-21-jre-headless
 rm -rf /var/lib/apt/lists/*
 apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
 

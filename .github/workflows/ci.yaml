@@ -52,6 +52,11 @@ jobs:
           enable-cache: true
           activate-environment: true
 
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          distribution: "temurin"
+          java-version-file: ".java-version"
+
       - name: Install test dependencies
         run: |
           uv sync --locked --all-extras --dev
