@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.13.5](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.4...v1.13.5) (2025-11-09)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#141](https://github.com/bzkf/fhir-to-lakehouse/issues/141)) ([7f6290b](https://github.com/bzkf/fhir-to-lakehouse/commit/7f6290bc5058ef74eead88d1589cc25ed9fefe55))
+* **deps:** update all non-major dependencies ([#145](https://github.com/bzkf/fhir-to-lakehouse/issues/145)) ([6a8a86c](https://github.com/bzkf/fhir-to-lakehouse/commit/6a8a86cc9aaa64585ea4527ec21a47d3a4224820))
+
+
+### Miscellaneous Chores
+
+* **deps:** pin ghcr.io/astral-sh/uv docker tag to 723665f ([#137](https://github.com/bzkf/fhir-to-lakehouse/issues/137)) ([43afa72](https://github.com/bzkf/fhir-to-lakehouse/commit/43afa726f79034666aaf6ef6ecea6dd095f78218))
+* **deps:** update all digest updates ([#143](https://github.com/bzkf/fhir-to-lakehouse/issues/143)) ([397e25a](https://github.com/bzkf/fhir-to-lakehouse/commit/397e25ade25b5c478dbb619ba1a3a0b50b80f55f))
+* **deps:** update dependency pytest to v9 ([#146](https://github.com/bzkf/fhir-to-lakehouse/issues/146)) ([9fb729a](https://github.com/bzkf/fhir-to-lakehouse/commit/9fb729a5fd009af06ee146d6cebbeb2081c0d31d))
+* **deps:** update docker.io/trinodb/trino docker tag to v478 ([#142](https://github.com/bzkf/fhir-to-lakehouse/issues/142)) ([a7c4046](https://github.com/bzkf/fhir-to-lakehouse/commit/a7c4046e31efb47e5d8df1db0b4aadb0056c14f9))
+* **deps:** update ghcr.io/astral-sh/uv:python3.13-trixie-slim docker digest to d245e14 ([#139](https://github.com/bzkf/fhir-to-lakehouse/issues/139)) ([39a5281](https://github.com/bzkf/fhir-to-lakehouse/commit/39a52815578cbedc2388bf52e5a68816ab250ced))
+* **deps:** update github-actions ([#140](https://github.com/bzkf/fhir-to-lakehouse/issues/140)) ([b4232a0](https://github.com/bzkf/fhir-to-lakehouse/commit/b4232a04099f07a29ac993d25601e04c94a8988a))
+* **deps:** update github-actions ([#144](https://github.com/bzkf/fhir-to-lakehouse/issues/144)) ([9413ccc](https://github.com/bzkf/fhir-to-lakehouse/commit/9413ccca4a925e822d9637078f9cc8516b3bf1a2))
+
 ## [1.13.4](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.3...v1.13.4) (2025-10-28)
 
 
