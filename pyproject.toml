@@ -14,19 +14,19 @@ dependencies = [
     "opentelemetry-exporter-prometheus==0.59b0",
     "tenacity==9.1.2",
     "tomli==2.3.0",
-    "click==8.3.0",
+    "click==8.3.1",
     "deltalake[pyarrow]==1.2.1",
-    "boto3==1.40.69",
+    "boto3==1.41.2",
 ]
 
 [dependency-groups]
 dev = [
-    "kafka-python==2.2.15",
+    "kafka-python==2.3.0",
     "pandas==2.3.3",
-    "pytest==9.0.0",
+    "pytest==9.0.1",
     "pytest-cov==7.0.0",
-    "testcontainers[minio]==4.13.2",
-    "ruff==0.14.4",
+    "testcontainers[minio]==4.13.3",
+    "ruff==0.14.6",
 ]
 
 [tool.ruff.lint]
