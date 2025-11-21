@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.6](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.5...v1.13.6) (2025-11-21)
+
+
+### Miscellaneous Chores
+
+* **deps:** update actions/checkout action to v6 ([#150](https://github.com/bzkf/fhir-to-lakehouse/issues/150)) ([f80fa46](https://github.com/bzkf/fhir-to-lakehouse/commit/f80fa464834a3bad75e0e9234f03da53d4f2f2ec))
+
 ## [1.13.5](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.4...v1.13.5) (2025-11-09)
 
 
