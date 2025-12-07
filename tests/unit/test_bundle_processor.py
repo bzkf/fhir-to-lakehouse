@@ -55,7 +55,7 @@ def pathling_fixture(setup_s3):
             "spark.jars.packages",
             ",".join(
                 [
-                    "au.csiro.pathling:library-runtime:9.0.0",
+                    "au.csiro.pathling:library-runtime:9.1.0",
                     "io.delta:delta-spark_2.13:4.0.0",
                     "org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.1",
                     "org.apache.hadoop:hadoop-aws:3.4.1",

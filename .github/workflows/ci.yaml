@@ -32,6 +32,7 @@ jobs:
     with:
       enable-build-test-layer: false
       enable-upload-test-image: false
+      free-disk-space: true
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}
 
