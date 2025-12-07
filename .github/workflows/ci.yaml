@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   build:
-    uses: miracum/.github/.github/workflows/standard-build.yaml@f8a5d9da93963f4dfe7111954bd1325bacec2498 # v1.18.1
+    uses: miracum/.github/.github/workflows/standard-build.yaml@ce6c3a04c437e52152d555daaeb1ee3c8bc67d02 # v1.19.0
     permissions:
       contents: write
       id-token: write
@@ -42,17 +42,17 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@85856786d1ce8acfbcc2f13a5f3fbd6b938f9f41 # v7.1.2
+        uses: astral-sh/setup-uv@ed21f2f24f8dd64503750218de024bcf64c7250a # v7.1.5
         with:
           enable-cache: true
           activate-environment: true
 
-      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+      - uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
         with:
           distribution: "temurin"
           java-version-file: ".java-version"
@@ -94,7 +94,7 @@ jobs:
           docker info -f '{{ .DriverStatus }}'
 
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
 
@@ -117,7 +117,7 @@ jobs:
           kind load image-archive /tmp/image.tar
 
       - name: Install uv
-        uses: astral-sh/setup-uv@85856786d1ce8acfbcc2f13a5f3fbd6b938f9f41 # v7.1.2
+        uses: astral-sh/setup-uv@ed21f2f24f8dd64503750218de024bcf64c7250a # v7.1.5
         with:
           enable-cache: true
           activate-environment: true
@@ -165,7 +165,7 @@ jobs:
             kind-cluster-dump.txt
 
   lint:
-    uses: miracum/.github/.github/workflows/standard-lint.yaml@f8a5d9da93963f4dfe7111954bd1325bacec2498 # v1.18.1
+    uses: miracum/.github/.github/workflows/standard-lint.yaml@ce6c3a04c437e52152d555daaeb1ee3c8bc67d02 # v1.19.0
     permissions:
       contents: read
       pull-requests: write
