@@ -36,6 +36,10 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 USER 65532:65532
 
-RUN SPARK_INSTALL_PACKAGES_AND_EXIT=1 python3 src/main.py
+RUN <<EOF
+set -e
+SPARK_INSTALL_PACKAGES_AND_EXIT=1 python3 src/main.py
+rm -rf /tmp/spark*
+EOF
 
 ENTRYPOINT [ "python3", "src/main.py" ]
