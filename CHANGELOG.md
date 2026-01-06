@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.13.7](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.6...v1.13.7) (2026-01-06)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#158](https://github.com/bzkf/fhir-to-lakehouse/issues/158)) ([562089a](https://github.com/bzkf/fhir-to-lakehouse/commit/562089acf913ff3a350db70aa24192f0305f3378))
+* remove /tmp/spark folder to reduce image size ([#154](https://github.com/bzkf/fhir-to-lakehouse/issues/154)) ([c414d6b](https://github.com/bzkf/fhir-to-lakehouse/commit/c414d6b11deb6a8a9877c6c545937b7412456a47))
+
+
+### Miscellaneous Chores
+
+* **deps:** update all digest updates ([#156](https://github.com/bzkf/fhir-to-lakehouse/issues/156)) ([dcd9c7d](https://github.com/bzkf/fhir-to-lakehouse/commit/dcd9c7da2940fb3d8d17905ac7414c42159cddf4))
+* **deps:** update docker.io/trinodb/trino docker tag to v479 ([#159](https://github.com/bzkf/fhir-to-lakehouse/issues/159)) ([b6b6419](https://github.com/bzkf/fhir-to-lakehouse/commit/b6b641976541ce1b0329a5dc44c32aba0fe88bc4))
+* **deps:** update github-actions ([#157](https://github.com/bzkf/fhir-to-lakehouse/issues/157)) ([a0a61e6](https://github.com/bzkf/fhir-to-lakehouse/commit/a0a61e6088dc818656925a8fdd16478eabf05c68))
+* **deps:** update github-actions ([#160](https://github.com/bzkf/fhir-to-lakehouse/issues/160)) ([a24d313](https://github.com/bzkf/fhir-to-lakehouse/commit/a24d313f8d682dd1f2d74c6f1f070989fec044c3))
+
 ## [1.13.6](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.5...v1.13.6) (2025-12-07)
 
 
