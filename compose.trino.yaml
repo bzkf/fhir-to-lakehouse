@@ -9,7 +9,7 @@ services:
       POSTGRES_DB: metastore
 
   hive-metastore:
-    image: ghcr.io/miracum/util-images/hive-metastore:v1.3.0@sha256:4b83eb4b7efd3f3dcd70d255336605e6cc5e028115460016837009664753d021
+    image: ghcr.io/miracum/util-images/hive-metastore:v1.3.1@sha256:e3e5b2e073280cf857dde9939c455e522aa23e3bc78a1a517f3102210504b270
     ipc: none
     security_opt:
       - "no-new-privileges:true"
