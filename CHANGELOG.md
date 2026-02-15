@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.13.8](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.7...v1.13.8) (2026-02-15)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#162](https://github.com/bzkf/fhir-to-lakehouse/issues/162)) ([94dc480](https://github.com/bzkf/fhir-to-lakehouse/commit/94dc4801c8f8240b97c3bf30233797dedc63033f))
+
+
+### Miscellaneous Chores
+
+* **deps:** pathling 9.3.0 and go back to default, non-kryo serializer ([#166](https://github.com/bzkf/fhir-to-lakehouse/issues/166)) ([f326df0](https://github.com/bzkf/fhir-to-lakehouse/commit/f326df05d55a76c62180e5ce3b8a6529ff0658f3))
+* **deps:** update ghcr.io/astral-sh/uv:python3.13-trixie-slim docker digest to 64d5d76 ([#161](https://github.com/bzkf/fhir-to-lakehouse/issues/161)) ([e235bcb](https://github.com/bzkf/fhir-to-lakehouse/commit/e235bcbf1ac76d8cc87f8a9579dc62289f9a57a3))
+* **deps:** update github-actions ([#163](https://github.com/bzkf/fhir-to-lakehouse/issues/163)) ([a991671](https://github.com/bzkf/fhir-to-lakehouse/commit/a99167127a7363df8f9922e8307e777ecb4289bb))
+
+
+### Build
+
+* **deps:** bump urllib3 from 2.6.0 to 2.6.3 ([#165](https://github.com/bzkf/fhir-to-lakehouse/issues/165)) ([860efd1](https://github.com/bzkf/fhir-to-lakehouse/commit/860efd1e7570782e0a566776970b452a41e02847))
+
 ## [1.13.7](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.6...v1.13.7) (2026-01-06)
 
 
