@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   build:
-    uses: miracum/.github/.github/workflows/standard-build.yaml@fc54adae638f776ca89a44f14fffc38c282da414 # v1.20.1
+    uses: miracum/.github/.github/workflows/standard-build.yaml@e80245abb031a27f87d0e07eeb6f5f54a82a46b8 # v1.20.4
     permissions:
       contents: write
       id-token: write
@@ -48,7 +48,7 @@ jobs:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7.3.1
         with:
           enable-cache: true
           activate-environment: true
@@ -100,7 +100,7 @@ jobs:
           persist-credentials: false
 
       - name: Create KinD cluster
-        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
         with:
           cluster_name: kind
           config: tests/integration/kind-config.yaml
@@ -118,7 +118,7 @@ jobs:
           kind load image-archive /tmp/image.tar
 
       - name: Install uv
-        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7.3.1
         with:
           enable-cache: true
           activate-environment: true
@@ -166,7 +166,7 @@ jobs:
             kind-cluster-dump.txt
 
   lint:
-    uses: miracum/.github/.github/workflows/standard-lint.yaml@fc54adae638f776ca89a44f14fffc38c282da414 # v1.20.1
+    uses: miracum/.github/.github/workflows/standard-lint.yaml@e80245abb031a27f87d0e07eeb6f5f54a82a46b8 # v1.20.4
     permissions:
       contents: read
       pull-requests: write
