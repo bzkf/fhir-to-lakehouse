@@ -1,5 +1,7 @@
 import os
 from collections.abc import Iterator
+from pathlib import PurePosixPath
+from typing import Literal
 
 import boto3
 import click
@@ -204,7 +206,10 @@ def vacuum(
 def optimize(
     bucket_name: str,
     database_name_prefix: str,
-    compression_type: str,
+    compression_type: Literal[
+        "UNCOMPRESSED", "SNAPPY", "GZIP", "BROTLI", "LZ4", "ZSTD", "LZ4_RAW"
+    ]
+    | None,
     compression_level: int,
     use_delta_rs: bool,
 ):
@@ -259,37 +264,23 @@ def register(bucket_name: str, database_name_prefix: str, hive_metastore: str):
             metastore=hive_metastore,
         )
 
-        # e.g. s3a://fhir/default/Patient.parquet
-        table_path = dt.table_uri
+        # table_uri is e.g. s3a://fhir/default/Condition.parquet/
+        # first remove the trailing "/" if present
+        path = PurePosixPath(dt.table_uri.rstrip("/"))
 
-        # the second to last part when splitting by '/' is 'default'
-        schema = table_path.split("/")[-2]
-
-        # the table path but without the table name
-        schema_path = table_path.removesuffix(table_path.split("/")[-1])
-
-        # the final folder name without the '.parquet' extension
-        table_name = table_path.split("/")[-1].removesuffix(".parquet")
-
-        # The parametrized query below didn't work due to parsing errors
-        # from the '-quoted schema.
-        # The working query uses Python string interpolation and is technically
-        # vulnerable to SQL injection.
-        # spark.sql(
-        #     "CREATE SCHEMA IF NOT EXISTS {schema} LOCATION {schema_path}",
-        #     schema=schema,
-        #     schema_path=schema_path,
-        # ).show()
+        schema = path.parent.name
+        table_name = path.name.removesuffix(".parquet")
+        schema_path = str(path.parent) + "/"
 
         create_schema_query = (
-            f"CREATE SCHEMA IF NOT EXISTS {schema} LOCATION '{schema_path}'"
+            f"CREATE SCHEMA IF NOT EXISTS `{schema}` LOCATION '{schema_path}'"
         )
         logger.info(create_schema_query)
         spark.sql(create_schema_query)
 
         create_table_query = (
-            f"CREATE TABLE IF NOT EXISTS {schema}.{table_name} "
-            + f"USING DELTA LOCATION '{table_path}'"
+            f"CREATE TABLE IF NOT EXISTS `{schema}`.`{table_name}` "
+            + f"USING DELTA LOCATION '{path}'"
         )
         logger.info(create_table_query)
         spark.sql(create_table_query)
