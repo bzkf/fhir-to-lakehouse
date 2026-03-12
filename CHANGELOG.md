@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.13.9](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.8...v1.13.9) (2026-03-12)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#172](https://github.com/bzkf/fhir-to-lakehouse/issues/172)) ([b65d791](https://github.com/bzkf/fhir-to-lakehouse/commit/b65d79118c9dae3c8cb52aa7e5085257dc7b9a6a))
+* trailing slash in register ([#176](https://github.com/bzkf/fhir-to-lakehouse/issues/176)) ([5661997](https://github.com/bzkf/fhir-to-lakehouse/commit/56619974c78b5f9a6385dc4adab92004eb40ec36))
+
+
+### Miscellaneous Chores
+
+* **deps:** lock file maintenance ([#167](https://github.com/bzkf/fhir-to-lakehouse/issues/167)) ([5e713cd](https://github.com/bzkf/fhir-to-lakehouse/commit/5e713cda84e6655ebfcdf1a3436fe652d20b29d4))
+* **deps:** lock file maintenance ([#169](https://github.com/bzkf/fhir-to-lakehouse/issues/169)) ([dc3de93](https://github.com/bzkf/fhir-to-lakehouse/commit/dc3de93e069b4a1efa55230f1757f475ef3b6eed))
+* **deps:** lock file maintenance ([#175](https://github.com/bzkf/fhir-to-lakehouse/issues/175)) ([869f866](https://github.com/bzkf/fhir-to-lakehouse/commit/869f8667fbba5337865164164d3839116307492c))
+* **deps:** update all digest updates ([#170](https://github.com/bzkf/fhir-to-lakehouse/issues/170)) ([eecc1a5](https://github.com/bzkf/fhir-to-lakehouse/commit/eecc1a54f29489158bdeb6481e875b2786885eca))
+* **deps:** update dependency pandas to v3 ([#173](https://github.com/bzkf/fhir-to-lakehouse/issues/173)) ([a6c7ff0](https://github.com/bzkf/fhir-to-lakehouse/commit/a6c7ff0e99d0719444a9450ade06057693992777))
+* **deps:** update github-actions ([#171](https://github.com/bzkf/fhir-to-lakehouse/issues/171)) ([0a4f3b7](https://github.com/bzkf/fhir-to-lakehouse/commit/0a4f3b7d94645df4a831ea9112599fc37e3c2a21))
+* **deps:** update github-actions ([#174](https://github.com/bzkf/fhir-to-lakehouse/issues/174)) ([51c59bb](https://github.com/bzkf/fhir-to-lakehouse/commit/51c59bbdcbe5a9e14319e248df7af3f0eafac762))
+
 ## [1.13.8](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.7...v1.13.8) (2026-02-15)
 
 
