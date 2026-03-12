@@ -266,33 +266,21 @@ def register(bucket_name: str, database_name_prefix: str, hive_metastore: str):
 
         # table_uri is e.g. s3a://fhir/default/Condition.parquet/
         # first remove the trailing "/" if present
-        table_uri = dt.table_uri.rstrip("/")  # normalize trailing slash
-
-        path = PurePosixPath(table_uri)
+        path = PurePosixPath(dt.table_uri.rstrip("/"))
 
         schema = path.parent.name
         table_name = path.name.removesuffix(".parquet")
         schema_path = str(path.parent) + "/"
 
-        # The parametrized query below didn't work due to parsing errors
-        # from the '-quoted schema.
-        # The working query uses Python string interpolation and is technically
-        # vulnerable to SQL injection.
-        # spark.sql(
-        #     "CREATE SCHEMA IF NOT EXISTS {schema} LOCATION {schema_path}",
-        #     schema=schema,
-        #     schema_path=schema_path,
-        # ).show()
-
         create_schema_query = (
-            f"CREATE SCHEMA IF NOT EXISTS {schema} LOCATION '{schema_path}'"
+            f"CREATE SCHEMA IF NOT EXISTS `{schema}` LOCATION '{schema_path}'"
         )
         logger.info(create_schema_query)
         spark.sql(create_schema_query)
 
         create_table_query = (
-            f"CREATE TABLE IF NOT EXISTS {schema}.{table_name} "
-            + f"USING DELTA LOCATION '{table_uri}'"
+            f"CREATE TABLE IF NOT EXISTS `{schema}`.`{table_name}` "
+            + f"USING DELTA LOCATION '{path}'"
         )
         logger.info(create_table_query)
         spark.sql(create_table_query)
