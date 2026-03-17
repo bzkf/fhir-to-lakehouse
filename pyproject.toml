@@ -5,7 +5,7 @@ description = "Reads FHIR bundles from Kafka, encodes them using the Pathling en
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "pathling==9.4.0",
+    "pathling==9.5.0",
     "delta-spark==4.1.0",
     "typed-settings[attrs]==25.3.0",
     "loguru==0.7.3",
@@ -15,8 +15,8 @@ dependencies = [
     "tenacity==9.1.4",
     "tomli==2.4.0",
     "click==8.3.1",
-    "deltalake[pyarrow]==1.4.2",
-    "boto3==1.42.64",
+    "deltalake[pyarrow]==1.5.0",
+    "boto3==1.42.69",
 ]
 
 [dependency-groups]
@@ -26,7 +26,7 @@ dev = [
     "pytest==9.0.2",
     "pytest-cov==7.0.0",
     "testcontainers[minio]==4.14.1",
-    "ruff==0.15.5",
+    "ruff==0.15.6",
 ]
 
 [tool.ruff.lint]
