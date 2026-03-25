@@ -1,7 +1,7 @@
 import os
 from collections.abc import Iterator
-from pathlib import PurePosixPath
 from typing import Literal
+from urllib.parse import urlparse, urlunparse
 
 import boto3
 import click
@@ -266,11 +266,16 @@ def register(bucket_name: str, database_name_prefix: str, hive_metastore: str):
 
         # table_uri is e.g. s3a://fhir/default/Condition.parquet/
         # first remove the trailing "/" if present
-        path = PurePosixPath(dt.table_uri.rstrip("/"))
+        path = dt.table_uri
+        parsed = urlparse(dt.table_uri)
 
-        schema = path.parent.name
-        table_name = path.name.removesuffix(".parquet")
-        schema_path = str(path.parent) + "/"
+        # Clean path and split manually
+        parts = parsed.path.rstrip("/").split("/")
+
+        table_name = parts[-1].removesuffix(".parquet")
+        schema = parts[-2]
+
+        schema_path = urlunparse(parsed._replace(path="/".join(parts[:-1]) + "/"))
 
         create_schema_query = (
             f"CREATE SCHEMA IF NOT EXISTS `{schema}` LOCATION '{schema_path}'"
