@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.13.10](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.9...v1.13.10) (2026-03-25)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#178](https://github.com/bzkf/fhir-to-lakehouse/issues/178)) ([9678e36](https://github.com/bzkf/fhir-to-lakehouse/commit/9678e36b638a5debbe1fb64734e385dbcba53721))
+* table registration ([#183](https://github.com/bzkf/fhir-to-lakehouse/issues/183)) ([9cfcf4b](https://github.com/bzkf/fhir-to-lakehouse/commit/9cfcf4b1ef98fbd4a3924bde51408d2e8ae7f83c))
+
+
+### Miscellaneous Chores
+
+* **deps:** lock file maintenance ([#177](https://github.com/bzkf/fhir-to-lakehouse/issues/177)) ([0632300](https://github.com/bzkf/fhir-to-lakehouse/commit/06323003cc25130c899cee4ece1360e69a4cb45c))
+* **deps:** update actions/create-github-app-token action to v3 ([#182](https://github.com/bzkf/fhir-to-lakehouse/issues/182)) ([3102438](https://github.com/bzkf/fhir-to-lakehouse/commit/3102438e30de3a2507a8017ef490f915e9411c65))
+* **deps:** update all digest updates ([#180](https://github.com/bzkf/fhir-to-lakehouse/issues/180)) ([531144d](https://github.com/bzkf/fhir-to-lakehouse/commit/531144dacc4e1c3b464ae683d5643f2c586bf3c2))
+* **deps:** update github-actions ([#181](https://github.com/bzkf/fhir-to-lakehouse/issues/181)) ([fe8bf53](https://github.com/bzkf/fhir-to-lakehouse/commit/fe8bf5341b14666dd2303ef0c2ae93d6fdb59715))
+
 ## [1.13.9](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.8...v1.13.9) (2026-03-12)
 
 
