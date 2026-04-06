@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.13.11](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.10...v1.13.11) (2026-04-06)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#189](https://github.com/bzkf/fhir-to-lakehouse/issues/189)) ([15a013c](https://github.com/bzkf/fhir-to-lakehouse/commit/15a013cb3b3518d5cc15c28f8cd8687089c7fdc4))
+
+
+### Miscellaneous Chores
+
+* **deps:** lock file maintenance ([#185](https://github.com/bzkf/fhir-to-lakehouse/issues/185)) ([9a4d5e6](https://github.com/bzkf/fhir-to-lakehouse/commit/9a4d5e6cd77837a1453576c203f0717f26be4dee))
+* **deps:** update ghcr.io/astral-sh/uv:python3.13-trixie-slim docker digest to 82f018b ([#188](https://github.com/bzkf/fhir-to-lakehouse/issues/188)) ([6f37eaa](https://github.com/bzkf/fhir-to-lakehouse/commit/6f37eaa7c7bc7b89eb499f5bde0a1a35db5e76ef))
+
 ## [1.13.10](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.9...v1.13.10) (2026-03-25)
 
 
