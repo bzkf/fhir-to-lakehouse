@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   build:
-    uses: miracum/.github/.github/workflows/standard-build.yaml@8bd8986d6b656c71b5570f91b5ad96bf606955b4 # v1.20.7
+    uses: miracum/.github/.github/workflows/standard-build.yaml@6c54f95d52ffc2aaddb163da9680a2d63c6accd9 # v1.21.1
     permissions:
       contents: write
       id-token: write
@@ -68,7 +68,7 @@ jobs:
 
       - name: Upload test coverage
         if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pytest-unit-tests-results
           path: htmlcov/
@@ -147,7 +147,7 @@ jobs:
 
       - name: Upload test coverage
         if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pytest-integration-tests-results
           path: htmlcov/
@@ -159,14 +159,14 @@ jobs:
 
       - name: Upload cluster dump
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: kind-cluster-dump.txt
           path: |
             kind-cluster-dump.txt
 
   lint:
-    uses: miracum/.github/.github/workflows/standard-lint.yaml@8bd8986d6b656c71b5570f91b5ad96bf606955b4 # v1.20.7
+    uses: miracum/.github/.github/workflows/standard-lint.yaml@6c54f95d52ffc2aaddb163da9680a2d63c6accd9 # v1.21.1
     permissions:
       contents: read
       pull-requests: write
