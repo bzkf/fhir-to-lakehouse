@@ -10,6 +10,6 @@ dependencies:
   version: 17.0.21
 - name: akhq
   repository: https://akhq.io/
-  version: 0.26.0
-digest: sha256:3d28e26e0dc461eec8790b2aad13b2ff3d7eb052e1f192f7304e5063deb77f50
-generated: "2026-03-09T21:06:06.078812921Z"
+  version: 0.27.0
+digest: sha256:f3cbdfb8012c281cb3a55a20fef6350976ed6401f25e95b5c53bea81ed8a36d3
+generated: "2026-05-07T22:11:18.662720868Z"
