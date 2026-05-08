@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.13.12](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.11...v1.13.12) (2026-05-08)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#193](https://github.com/bzkf/fhir-to-lakehouse/issues/193)) ([cb4d714](https://github.com/bzkf/fhir-to-lakehouse/commit/cb4d7140470f77d569298ab3cf597fd48538cdb4))
+
+
+### Miscellaneous Chores
+
+* **deps:** update dependency pytest to v9.0.3 [security] ([#191](https://github.com/bzkf/fhir-to-lakehouse/issues/191)) ([5dd0cf7](https://github.com/bzkf/fhir-to-lakehouse/commit/5dd0cf70c8d9aed9b7b896dc03ef13f7c59f4021))
+
 ## [1.13.11](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.10...v1.13.11) (2026-04-06)
 
 
