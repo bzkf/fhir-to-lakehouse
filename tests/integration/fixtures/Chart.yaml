@@ -19,4 +19,4 @@ dependencies:
   - name: akhq
     condition: akhq.enabled
     repository: https://akhq.io/
-    version: 0.26.0
+    version: 0.27.0
