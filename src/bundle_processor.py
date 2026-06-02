@@ -31,28 +31,6 @@ resources_processed_counter = meter.create_counter(
 )
 
 
-def _set_meta_last_updated(resource, kafka_timestamp):
-    if resource is None or kafka_timestamp is None:
-        return resource
-
-    try:
-        parsed_resource = json.loads(resource)
-    except json.JSONDecodeError:
-        return resource
-
-    if not isinstance(parsed_resource, dict):
-        return resource
-
-    meta = parsed_resource.get("meta")
-    if not isinstance(meta, dict):
-        meta = {}
-
-    meta["lastUpdated"] = kafka_timestamp
-    parsed_resource["meta"] = meta
-
-    return json.dumps(parsed_resource, separators=(",", ":"))
-
-
 class BundleProcessor:
     def __init__(self, pc: PathlingContext, settings: Settings):
         self.pc = pc
@@ -103,7 +81,29 @@ class BundleProcessor:
                 F.col("timestamp"), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
             )
 
-            set_meta_last_updated_udf = F.udf(_set_meta_last_updated, StringType())
+            def set_meta_last_updated(resource, kafka_timestamp):
+                """Set resource.meta.lastUpdated in a FHIR resource JSON string."""
+                if resource is None or kafka_timestamp is None:
+                    return resource
+
+                try:
+                    parsed_resource = json.loads(resource)
+                except json.JSONDecodeError:
+                    return resource
+
+                if not isinstance(parsed_resource, dict):
+                    return resource
+
+                meta = parsed_resource.get("meta")
+                if not isinstance(meta, dict):
+                    meta = {}
+
+                meta["lastUpdated"] = kafka_timestamp
+                parsed_resource["meta"] = meta
+
+                return json.dumps(parsed_resource)
+
+            set_meta_last_updated_udf = F.udf(set_meta_last_updated, StringType())
 
             df_result = df_result.withColumn(
                 "resource",
