@@ -412,7 +412,7 @@ def test_override_meta_last_updated_from_kafka_timestamp(pathling_fixture, tmp_p
     assert row.id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
     # meta.lastUpdated should be set to the Kafka timestamp
     assert row.meta.lastUpdated is not None
-    assert "2024-06-15T10:30:45" in row.meta.lastUpdated
+    assert row.meta.lastUpdated == kafka_timestamp
 
 
 def test_override_meta_last_updated_resource_without_meta(pathling_fixture, tmp_path):
@@ -455,4 +455,4 @@ def test_override_meta_last_updated_resource_without_meta(pathling_fixture, tmp_
     row = dt.toDF().first()
     assert row.id == "0"
     assert row.meta.lastUpdated is not None
-    assert "2024-03-20T08:00:00" in row.meta.lastUpdated
+    assert row.meta.lastUpdated == kafka_timestamp
