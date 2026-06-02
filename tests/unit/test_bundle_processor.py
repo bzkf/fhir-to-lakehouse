@@ -372,3 +372,44 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
     assert dt.toDF().where("id = 2 and active = false").count() == 1, (
         "Expected patient 2 to have active=false after the latest PUT request"
     )
+
+
+def test_override_meta_last_updated_from_kafka_timestamp(pathling_fixture, tmp_path):
+    put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
+
+    kafka_timestamp = datetime.datetime(2024, 6, 15, 10, 30, 45, 123000)
+
+    data = {
+        "key": "key",
+        "value": put_bundle,
+        "timestamp": kafka_timestamp,
+        "partition": 0,
+        "offset": 0,
+    }
+
+    df = pathling_fixture.spark.createDataFrame([data])
+
+    d = tmp_path / "warehouse" / "data"
+    settings = Settings(
+        delta_database_dir=d.as_posix(),
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        override_meta_last_updated_from_kafka_timestamp=True,
+    )
+
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
+
+    bp.process_batch(df, 1)
+
+    dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
+
+    assert dt.toDF().count() == 1
+
+    row = dt.toDF().first()
+    assert row.id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+    # meta.lastUpdated should be set to the Kafka timestamp
+    assert row.meta.lastUpdated is not None
+    assert "2024-06-15" in row.meta.lastUpdated

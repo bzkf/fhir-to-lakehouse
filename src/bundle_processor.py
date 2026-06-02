@@ -74,6 +74,54 @@ class BundleProcessor:
             .withColumn("request_resource_id", F.col("request_url_split").getItem(1))
         )
 
+        if self.settings.override_meta_last_updated_from_kafka_timestamp:
+            # Format the Kafka timestamp as a FHIR instant
+            # (ISO 8601 with timezone offset)
+            kafka_timestamp_str = F.date_format(
+                F.col("timestamp"), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
+            )
+
+            # Inject meta.lastUpdated into the resource JSON before encoding.
+            # First, remove any existing lastUpdated field from the resource.
+            # Then, if the resource has a "meta" object, insert lastUpdated as
+            # the first field within it. Otherwise, add a new meta object.
+            has_meta = F.get_json_object(F.col("resource"), "$.meta").isNotNull()
+
+            # Remove any existing "lastUpdated" field from meta to avoid
+            # duplicate keys
+            resource_col = F.regexp_replace(
+                F.col("resource"),
+                r'"lastUpdated"\s*:\s*"[^"]*"\s*,?\s*',
+                "",
+            )
+
+            resource_with_meta = F.regexp_replace(
+                resource_col,
+                r'"meta"\s*:\s*\{',
+                F.concat(
+                    F.lit('"meta":{"lastUpdated":"'),
+                    kafka_timestamp_str,
+                    F.lit('",'),
+                ),
+            )
+
+            resource_without_meta = F.regexp_replace(
+                resource_col,
+                r"^\s*\{",
+                F.concat(
+                    F.lit('{"meta":{"lastUpdated":"'),
+                    kafka_timestamp_str,
+                    F.lit('"},'),
+                ),
+            )
+
+            df_result = df_result.withColumn(
+                "resource",
+                F.when(has_meta, resource_with_meta).otherwise(
+                    resource_without_meta
+                ),
+            )
+
         return df_result
 
     def process_batch(

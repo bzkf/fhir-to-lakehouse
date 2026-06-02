@@ -66,6 +66,8 @@ class Settings:
     # if enabled, log the number of resources per Kafka
     # topic per batch
     log_resource_count_by_source_topic: bool = False
+    # if enabled, set each resource's meta.lastUpdated to the Kafka message timestamp
+    override_meta_last_updated_from_kafka_timestamp: bool = False
     resource_types_to_process_in_parallel: list[str] = [
         "Patient",
         "Observation",
