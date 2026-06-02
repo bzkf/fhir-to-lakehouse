@@ -31,6 +31,28 @@ resources_processed_counter = meter.create_counter(
 )
 
 
+def _set_meta_last_updated(resource, kafka_timestamp):
+    if resource is None or kafka_timestamp is None:
+        return resource
+
+    try:
+        parsed_resource = json.loads(resource)
+    except json.JSONDecodeError:
+        return resource
+
+    if not isinstance(parsed_resource, dict):
+        return resource
+
+    meta = parsed_resource.get("meta")
+    if not isinstance(meta, dict):
+        meta = {}
+
+    meta["lastUpdated"] = kafka_timestamp
+    parsed_resource["meta"] = meta
+
+    return json.dumps(parsed_resource, separators=(",", ":"))
+
+
 class BundleProcessor:
     def __init__(self, pc: PathlingContext, settings: Settings):
         self.pc = pc
@@ -81,45 +103,11 @@ class BundleProcessor:
                 F.col("timestamp"), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
             )
 
-            # Inject meta.lastUpdated into the resource JSON before encoding.
-            # First, remove any existing lastUpdated field from the resource.
-            # Then, if the resource has a "meta" object, insert lastUpdated as
-            # the first field within it. Otherwise, add a new meta object.
-            has_meta = F.get_json_object(F.col("resource"), "$.meta").isNotNull()
-
-            # Remove any existing "lastUpdated" field from meta to avoid
-            # duplicate keys
-            resource_col = F.regexp_replace(
-                F.col("resource"),
-                r'"lastUpdated"\s*:\s*"[^"]*"\s*,?\s*',
-                "",
-            )
-
-            resource_with_meta = F.regexp_replace(
-                resource_col,
-                r'"meta"\s*:\s*\{',
-                F.concat(
-                    F.lit('"meta":{"lastUpdated":"'),
-                    kafka_timestamp_str,
-                    F.lit('",'),
-                ),
-            )
-
-            resource_without_meta = F.regexp_replace(
-                resource_col,
-                r"^\s*\{",
-                F.concat(
-                    F.lit('{"meta":{"lastUpdated":"'),
-                    kafka_timestamp_str,
-                    F.lit('"},'),
-                ),
-            )
+            set_meta_last_updated_udf = F.udf(_set_meta_last_updated, StringType())
 
             df_result = df_result.withColumn(
                 "resource",
-                F.when(has_meta, resource_with_meta).otherwise(
-                    resource_without_meta
-                ),
+                set_meta_last_updated_udf(F.col("resource"), kafka_timestamp_str),
             )
 
         return df_result

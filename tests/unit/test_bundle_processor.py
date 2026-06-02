@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 from pathlib import Path
 
@@ -456,3 +457,64 @@ def test_override_meta_last_updated_resource_without_meta(pathling_fixture, tmp_
     assert row.id == "0"
     assert row.meta.lastUpdated is not None
     assert row.meta.lastUpdated == kafka_timestamp
+
+
+def test_override_meta_last_updated_replaces_existing_value(pathling_fixture, tmp_path):
+    put_bundle = json.dumps(
+        {
+            "resourceType": "Bundle",
+            "type": "transaction",
+            "entry": [
+                {
+                    "resource": {
+                        "resourceType": "Patient",
+                        "id": "existing-last-updated",
+                        "meta": {
+                            "versionId": "7",
+                            "lastUpdated": "2000-01-01T00:00:00Z",
+                        },
+                    },
+                    "request": {
+                        "method": "PUT",
+                        "url": "Patient/existing-last-updated",
+                    },
+                }
+            ],
+        }
+    )
+
+    kafka_timestamp = datetime.datetime(2024, 7, 1, 11, 22, 33, 0)
+
+    data = {
+        "key": "key",
+        "value": put_bundle,
+        "timestamp": kafka_timestamp,
+        "partition": 0,
+        "offset": 0,
+    }
+
+    df = pathling_fixture.spark.createDataFrame([data])
+
+    d = tmp_path / "warehouse" / "data"
+    settings = Settings(
+        delta_database_dir=d.as_posix(),
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        override_meta_last_updated_from_kafka_timestamp=True,
+    )
+
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
+
+    bp.process_batch(df, 1)
+
+    dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
+
+    assert dt.toDF().count() == 1
+
+    row = dt.toDF().first()
+    assert row.id == "existing-last-updated"
+    assert row.meta.lastUpdated == kafka_timestamp
+    assert row.meta.versionId == "7"
