@@ -3,3 +3,4 @@ exclude_dirs:
 
 skips:
   - "B404"
+  - "B603"

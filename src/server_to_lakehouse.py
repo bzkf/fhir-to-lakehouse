@@ -430,7 +430,7 @@ def cmd_export(
             )
 
     # ---- Concurrent downloads -------------------------------------------
-    new_state: dict[str, str] = dict(state)
+    new_state: dict[str, datetime] = dict(state)
     uploaded_urls: dict[str, str] = {}
     errors: list[tuple[str, str]] = []
     _now = datetime.now(UTC)
