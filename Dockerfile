@@ -1,6 +1,6 @@
 
 FROM docker.io/curlimages/curl:8.20.0@sha256:b3f1fb2a51d923260350d21b8654bbc607164a987e2f7c84a0ac199a67df812a AS blazectl
-SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
+SHELL ["/bin/sh", "-eo", "pipefail", "-c"]
 USER root
 RUN <<EOF
 set -e
