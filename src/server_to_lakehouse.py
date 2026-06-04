@@ -418,7 +418,7 @@ def cmd_export(
     logger.info("Will export {} resource type(s)", len(resource_types_list))
 
     # ---- Load incremental state ------------------------------------------
-    state: dict[str, str] = {}
+    state: dict[str, datetime] = {}
     if incremental:
         if since:
             logger.info("Incremental mode: using --since override {}", since)
