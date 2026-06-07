@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.13.13](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.12...v1.13.13) (2026-05-20)
+
+
+### Build
+
+* **deps:** bump idna from 3.11 to 3.15 ([#196](https://github.com/bzkf/fhir-to-lakehouse/issues/196)) ([ebc2858](https://github.com/bzkf/fhir-to-lakehouse/commit/ebc28586beb0c5ea76201db1083f6ff487c7bbb9))
+* **deps:** bump urllib3 from 2.6.3 to 2.7.0 ([#194](https://github.com/bzkf/fhir-to-lakehouse/issues/194)) ([5073e62](https://github.com/bzkf/fhir-to-lakehouse/commit/5073e62f85f697fcb628f4c8182dae5b5ab43d9e))
+
 ## [1.13.12](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.11...v1.13.12) (2026-05-08)
 
 
