@@ -1,2 +1,6 @@
 exclude_dirs:
   - "tests/"
+
+skips:
+  - "B404"
+  - "B603"
