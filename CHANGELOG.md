@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.15](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.14...v1.13.15) (2026-07-05)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#199](https://github.com/bzkf/fhir-to-lakehouse/issues/199)) ([0decf8f](https://github.com/bzkf/fhir-to-lakehouse/commit/0decf8f84f99b06cf7d5cf0fc4474eda7d238d37))
+
 ## [1.13.14](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.13...v1.13.14) (2026-07-05)
 
 
