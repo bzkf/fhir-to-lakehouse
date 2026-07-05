@@ -1,7 +1,7 @@
 # kics-scan ignore
 services:
   kafka:
-    image: docker.io/apache/kafka-native:4.2.0@sha256:777f2dddec6970003f1f27922a8c317d87140567b0537e801d35669ad9a81faf
+    image: docker.io/apache/kafka-native:4.3.0@sha256:169febaaa11b212435605b25f0654bd5aa6c07ed09d9efd61ae40c52d514c3a7
     ipc: none
     security_opt:
       - "no-new-privileges:true"
@@ -42,7 +42,7 @@ services:
         condition: service_started
 
   akhq:
-    image: docker.io/tchiotludo/akhq:0.27.0@sha256:c76377964bd51b0db2fd323c722d13e3991624e1410afcb23a58df6a1c7b80bf
+    image: docker.io/tchiotludo/akhq:0.27.1@sha256:66a43e84a3355f0a13f3b165a48f515c72a5344ea7ea0575a3e4efe2d3ac9a91
     restart: unless-stopped
     cap_drop:
       - ALL
@@ -85,7 +85,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   wait-for-minio:
-    image: docker.io/curlimages/curl:8.19.0@sha256:c03110c736db81bbe1be0296f1f1608c81b954b01626bdfb0a8f84e5bd00ff3c
+    image: docker.io/curlimages/curl:8.20.0@sha256:b3f1fb2a51d923260350d21b8654bbc607164a987e2f7c84a0ac199a67df812a
     ipc: none
     security_opt:
       - "no-new-privileges:true"
