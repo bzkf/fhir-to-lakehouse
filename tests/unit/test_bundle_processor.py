@@ -57,7 +57,7 @@ def pathling_fixture(setup_s3):
                 [
                     "au.csiro.pathling:library-runtime:9.8.0",
                     "io.delta:delta-spark_2.13:4.0.0",
-                    "org.apache.spark:spark-streaming-kafka-0-10_2.13:4.1.2",
+                    "org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.2",
                     "org.apache.hadoop:hadoop-aws:3.4.1",
                 ]
             ),
