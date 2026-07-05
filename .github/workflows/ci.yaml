@@ -167,7 +167,7 @@ jobs:
             kind-cluster-dump.txt
 
   lint:
-    uses: miracum/.github/.github/workflows/standard-build.yaml@6dd82c72c638213b8b8dac2e93fc71e06a7bf349 # v1.22.3
+    uses: miracum/.github/.github/workflows/standard-lint.yaml@6dd82c72c638213b8b8dac2e93fc71e06a7bf349 # v1.22.3
     permissions:
       contents: read
       pull-requests: write
