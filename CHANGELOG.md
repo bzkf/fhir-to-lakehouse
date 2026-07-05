@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.13.14](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.13...v1.13.14) (2026-07-05)
+
+
+### Miscellaneous Chores
+
+* **deps:** update all digest updates ([#200](https://github.com/bzkf/fhir-to-lakehouse/issues/200)) ([d2fd364](https://github.com/bzkf/fhir-to-lakehouse/commit/d2fd364b57818fe39565c4ad573ad06d5543bff3))
+* **deps:** update github-actions ([#201](https://github.com/bzkf/fhir-to-lakehouse/issues/201)) ([5efed75](https://github.com/bzkf/fhir-to-lakehouse/commit/5efed75b096f894f9f2fe132d18e5b4b59582b17))
+
 ## [1.13.13](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.12...v1.13.13) (2026-05-20)
 
 
