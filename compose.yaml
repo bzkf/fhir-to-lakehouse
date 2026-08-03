@@ -1,7 +1,7 @@
 # kics-scan ignore
 services:
   kafka:
-    image: docker.io/apache/kafka-native:4.3.0@sha256:169febaaa11b212435605b25f0654bd5aa6c07ed09d9efd61ae40c52d514c3a7
+    image: docker.io/apache/kafka-native:4.3.1@sha256:2885898ba17065023f1bd605f3a81efcfa986014f062b73b91ef5462485f9060
     ipc: none
     security_opt:
       - "no-new-privileges:true"
@@ -85,7 +85,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   wait-for-minio:
-    image: docker.io/curlimages/curl:8.20.0@sha256:b3f1fb2a51d923260350d21b8654bbc607164a987e2f7c84a0ac199a67df812a
+    image: docker.io/curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
     ipc: none
     security_opt:
       - "no-new-privileges:true"
