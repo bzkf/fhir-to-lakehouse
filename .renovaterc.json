@@ -8,5 +8,11 @@
     ]
   },
   "ignorePaths": ["**/node_modules/**", "**/bower_components/**"],
-  "ignoreDeps": ["py4j"]
+  "ignoreDeps": ["py4j"],
+  "packageRules": [
+    {
+      "matchPackageNames": ["opentelemetry-exporter-prometheus"],
+      "ignoreUnstable": false
+    }
+  ]
 }
