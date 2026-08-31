@@ -2,7 +2,7 @@
 
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/bzkf/fhir-to-lakehouse?label=openssf%20scorecard&style=flat)](https://scorecard.dev/viewer/?uri=github.com/bzkf/fhir-to-lakehouse)
 
-Reads FHIR bundles from Kafka, encodes them using the Pathling encoders, and stores them as Delta Lake tables.
+Reads FHIR bundles from Kafka, encodes them using the Pathling encoders, and upserts them into Delta Lake or Iceberg tables.
 
 ## Configuration
 
@@ -13,6 +13,9 @@ For the nested configuration it is easier to use a [config file](https://typed-s
 For example, create the followint settings.toml file:
 
 ```toml
+[fhir-to-lakehouse]
+table_format = "delta" # or "iceberg"
+
 [fhir-to-lakehouse.delta]
 checkpoint_interval = "123"
 
@@ -27,6 +30,22 @@ and start the application with the env var `FHIR_TO_LAKEHOUSE_SETTINGS` pointing
 ```sh
 FHIR_TO_LAKEHOUSE_SETTINGS=settings.toml python src/main.py
 ```
+
+### Table Format: Delta Lake vs. Iceberg
+
+By default, resources are upserted into [Delta Lake](https://delta.io/) tables located under `delta_database_dir`
+(one `<resource_type>.parquet` folder per FHIR resource type).
+
+Set `table_format = "iceberg"` (or the env var `FHIR_TO_LAKEHOUSE_TABLE_FORMAT=iceberg`) to upsert into
+[Apache Iceberg](https://iceberg.apache.org/) tables instead. Iceberg tables are registered in the Spark catalog
+configured via the `iceberg` settings (`iceberg.catalog_name`, default `iceberg`) and are stored under
+`iceberg_database_dir`. By default, a Hadoop catalog is used (`iceberg.catalog_type = "hadoop"`), which doesn't
+require a Hive metastore; set `iceberg.catalog_type = "hive"` together with `metastore_url` to register Iceberg
+tables in a Hive metastore instead. Table maintenance (file compaction via `rewrite_data_files` and old-snapshot
+expiry via `expire_snapshots`) runs periodically, just like `OPTIMIZE`/`VACUUM` do for Delta tables.
+
+Both Delta and Iceberg jars are always installed, regardless of `table_format`, so switching formats doesn't
+require re-downloading packages at container startup.
 
 ### Spark Config
 

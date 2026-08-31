@@ -1,4 +1,5 @@
 import os
+from typing import Literal
 
 import typed_settings as ts
 
@@ -52,13 +53,34 @@ class DeltaSettings:
 
 
 @ts.settings
+class IcebergSettings:
+    # name of the Spark catalog used for Iceberg tables. Kept separate from
+    # `spark_catalog` so Delta and Iceberg tables can coexist in the same
+    # Spark session.
+    catalog_name: str = "iceberg"
+    # "hadoop" stores catalog metadata directly under `iceberg_database_dir`
+    # without requiring a Hive metastore. Use "hive" together with
+    # `metastore_url` to register tables in a Hive metastore instead.
+    catalog_type: str = "hadoop"
+    namespace: str = "default"
+    format_version: str = "2"
+    target_file_size_bytes: str = str(128 * 1024 * 1024)
+    write_distribution_mode: str = "hash"
+    partition_columns_by_resource_type: dict[str, list[str]] = {}
+
+
+@ts.settings
 class Settings:
     kafka: KafkaSettings
     spark: SparkSettings
     delta: DeltaSettings
+    iceberg: IcebergSettings
+    # which table format to upsert FHIR resources into
+    table_format: Literal["delta", "iceberg"] = "delta"
     aws_access_key_id: str = "admin"
     aws_secret_access_key: str = ts.secret(default="miniopass")
     delta_database_dir: str = "s3a://fhir/warehouse"
+    iceberg_database_dir: str = "s3a://fhir/warehouse-iceberg"
     vacuum_retention_hours: int = 24
     metrics_port: int = 8000
     metrics_addr: str = "127.0.0.1"

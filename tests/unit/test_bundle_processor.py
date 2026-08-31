@@ -12,6 +12,7 @@ from testcontainers.minio import MinioContainer
 from bundle_processor import BundleProcessor
 from settings import (
     DeltaSettings,
+    IcebergSettings,
     KafkaSettings,
     KafkaSslSettings,
     Settings,
@@ -57,16 +58,31 @@ def pathling_fixture(setup_s3):
                 [
                     "au.csiro.pathling:library-runtime:9.8.0",
                     "io.delta:delta-spark_2.13:4.0.0",
+                    "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.11.0",
                     "org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2",
                     "org.apache.hadoop:hadoop-aws:3.4.1",
                 ]
             ),
         )
         .config("spark.databricks.delta.retentionDurationCheck.enabled", "false")
-        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config(
+            "spark.sql.extensions",
+            ",".join(
+                [
+                    "io.delta.sql.DeltaSparkSessionExtension",
+                    "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+                ]
+            ),
+        )
         .config(
             "spark.sql.catalog.spark_catalog",
             "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+        )
+        .config("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog")
+        .config("spark.sql.catalog.iceberg.type", "hadoop")
+        .config(
+            "spark.sql.catalog.iceberg.warehouse",
+            "s3a://test/iceberg-warehouse",
         )
         .config(
             "spark.hadoop.fs.s3a.path.style.access",
@@ -108,6 +124,7 @@ def test_with_empty_dataframe_should_not_fail(pathling_fixture):
         pathling_fixture,
         settings=Settings(
             delta=DeltaSettings(),
+            iceberg=IcebergSettings(),
             spark=SparkSettings(),
             kafka=KafkaSettings(ssl=KafkaSslSettings()),
         ),
@@ -136,6 +153,7 @@ def test_delete_afer_insert_should_delete_row(pathling_fixture, tmp_path):
         spark=SparkSettings(),
         delta=DeltaSettings(),
         kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        iceberg=IcebergSettings(),
     )
 
     bp = BundleProcessor(pathling_fixture, settings=settings)
@@ -178,6 +196,7 @@ def test_store_tables_in_minio(pathling_fixture):
         ),
         delta=DeltaSettings(),
         kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        iceberg=IcebergSettings(),
     )
 
     data = {
@@ -221,6 +240,7 @@ def test_vaccuum_and_optimize(pathling_fixture, tmp_path):
         spark=SparkSettings(),
         delta=DeltaSettings(),
         kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        iceberg=IcebergSettings(),
     )
 
     bp = BundleProcessor(pathling_fixture, settings=settings)
@@ -261,6 +281,7 @@ def test_liquid_clustering(pathling_fixture, tmp_path):
             clustering_columns_by_resource_type=clustering_columns_by_resource_type
         ),
         kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        iceberg=IcebergSettings(),
     )
 
     bp = BundleProcessor(pathling_fixture, settings=settings)
@@ -355,6 +376,7 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
         spark=SparkSettings(),
         delta=DeltaSettings(),
         kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        iceberg=IcebergSettings(),
     )
 
     bp = BundleProcessor(pathling_fixture, settings=settings)
@@ -370,5 +392,190 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
     assert [str(row["id"]) for row in dt.toDF().collect()] == ["0", "2"]
 
     assert dt.toDF().where("id = 2 and active = false").count() == 1, (
+        "Expected patient 2 to have active=false after the latest PUT request"
+    )
+
+
+def test_iceberg_delete_after_insert_should_delete_row(pathling_fixture):
+    put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
+
+    data = {
+        "key": "key",
+        "value": put_bundle,
+        "timestamp": datetime.datetime.now(),
+        "partition": 0,
+        "offset": 0,
+    }
+
+    df = pathling_fixture.spark.createDataFrame([data])
+
+    settings = Settings(
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        iceberg=IcebergSettings(namespace="test_iceberg_delete_after_insert"),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        table_format="iceberg",
+    )
+
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
+
+    bp.process_batch(df, 1)
+
+    table = "iceberg.test_iceberg_delete_after_insert.Patient"
+    result_df = pathling_fixture.spark.table(table)
+
+    assert result_df.count() == 1
+    assert result_df.first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+
+    delete_bundle = (HERE / "fixtures/resources/delete-single-patient.json").read_text()
+
+    data = {
+        "key": "key",
+        "value": delete_bundle,
+        "timestamp": datetime.datetime.now(),
+        "partition": 0,
+        "offset": 1,
+    }
+
+    df = pathling_fixture.spark.createDataFrame([data])
+
+    df = bp.prepare_stream(df)
+
+    bp.process_batch(df, 2)
+
+    assert pathling_fixture.spark.table(table).count() == 0
+
+
+def test_iceberg_vacuum_and_optimize(pathling_fixture):
+    put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
+
+    data = {
+        "key": "key",
+        "value": put_bundle,
+        "timestamp": datetime.datetime.now(),
+        "partition": 0,
+        "offset": 0,
+    }
+
+    df = pathling_fixture.spark.createDataFrame([data])
+
+    settings = Settings(
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        iceberg=IcebergSettings(
+            namespace="test_iceberg_vacuum_and_optimize",
+            partition_columns_by_resource_type={"Patient": ["gender"]},
+        ),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        table_format="iceberg",
+    )
+
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
+
+    # batch_id of 0 already triggers the default upkeep interval, exercising
+    # the rewrite_data_files/expire_snapshots procedures
+    bp.process_batch(df, 0)
+
+    table = "iceberg.test_iceberg_vacuum_and_optimize.Patient"
+    result_df = pathling_fixture.spark.table(table)
+
+    assert result_df.count() == 1
+    assert result_df.first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+
+
+def test_iceberg_batch_with_put_and_delete_should_only_retain_latest(pathling_fixture):
+    data = [
+        {
+            "key": "0",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/put-0.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 0,
+            "offset": 0,
+        },
+        {
+            "key": "1",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/put-1.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 1,
+            "offset": 0,
+        },
+        {
+            "key": "2",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/put-2.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 0,
+            "offset": 0,
+        },
+        {
+            "key": "1",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/delete-1.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 1,
+            "offset": 1,
+        },
+        {
+            "key": "1",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/put-1.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 1,
+            "offset": 2,
+        },
+        {
+            "key": "1",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/delete-1.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 1,
+            "offset": 3,
+        },
+        {
+            "key": "2",
+            "value": (
+                HERE / "fixtures/resources/batches/put-and-delete/put-2-newer.json"
+            ).read_text(),
+            "timestamp": datetime.datetime.now(),
+            "partition": 0,
+            "offset": 99,
+        },
+    ]
+
+    df = pathling_fixture.spark.createDataFrame(data)
+
+    settings = Settings(
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        iceberg=IcebergSettings(namespace="test_iceberg_batch_with_put_and_delete"),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        table_format="iceberg",
+    )
+
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
+
+    bp.process_batch(df, 1)
+
+    table = "iceberg.test_iceberg_batch_with_put_and_delete.Patient"
+    result_df = pathling_fixture.spark.table(table)
+
+    assert result_df.count() == 2
+    assert sorted(str(row["id"]) for row in result_df.collect()) == ["0", "2"]
+
+    assert result_df.where("id = 2 and active = false").count() == 1, (
         "Expected patient 2 to have active=false after the latest PUT request"
     )
