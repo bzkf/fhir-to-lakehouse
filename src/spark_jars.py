@@ -7,6 +7,7 @@ from pyspark.sql import SparkSession
 PACKAGES = [
     "au.csiro.pathling:library-runtime:9.8.0",
     "io.delta:delta-spark_2.13:4.0.0",
+    "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.11.0",
     "org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2",
     "org.apache.hadoop:hadoop-aws:3.4.1",
 ]

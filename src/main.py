@@ -40,12 +40,21 @@ set_meter_provider(MeterProvider(metric_readers=[reader]))
 
 # other config can be set via $SPARK_HOME/conf/spark-defaults.conf,
 # e.g. compression type.
+# Delta and Iceberg jars/extensions are always installed regardless of
+# `settings.table_format` so that switching formats doesn't require
+# re-downloading packages (e.g. in air-gapped/restricted-egress deployments)
+# and so the container build step can pre-cache all of them.
 spark_config = (
     with_jars(SparkSession.builder.master(settings.spark.master))  # type: ignore
     .appName("fhir_to_lakehouse")
     .config(
         "spark.sql.extensions",
-        "io.delta.sql.DeltaSparkSessionExtension",
+        ",".join(
+            [
+                "io.delta.sql.DeltaSparkSessionExtension",
+                "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+            ]
+        ),
     )
     .config(
         "spark.driver.memory",
@@ -60,10 +69,17 @@ spark_config = (
     .config("spark.sql.warehouse.dir", settings.spark.warehouse_dir)
     .config("spark.databricks.delta.retentionDurationCheck.enabled", "false")
     .config("spark.databricks.delta.schema.autoMerge.enabled", "false")
-    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
     .config(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+        f"spark.sql.catalog.{settings.iceberg.catalog_name}",
+        "org.apache.iceberg.spark.SparkCatalog",
+    )
+    .config(
+        f"spark.sql.catalog.{settings.iceberg.catalog_name}.type",
+        settings.iceberg.catalog_type,
+    )
+    .config(
+        f"spark.sql.catalog.{settings.iceberg.catalog_name}.warehouse",
+        settings.iceberg_database_dir,
     )
     .config(
         "spark.hadoop.fs.s3a.path.style.access",
@@ -84,9 +100,15 @@ spark_config = (
 )
 
 if settings.metastore_url:
-    spark_config.config("spark.hive.metastore.uris", settings.metastore_url).config(
-        "spark.sql.catalogImplementation", "hive"
-    )
+    spark_config = spark_config.config(
+        "spark.hive.metastore.uris", settings.metastore_url
+    ).config("spark.sql.catalogImplementation", "hive")
+
+    if settings.iceberg.catalog_type == "hive":
+        spark_config = spark_config.config(
+            f"spark.sql.catalog.{settings.iceberg.catalog_name}.uri",
+            settings.metastore_url,
+        )
 
 spark = spark_config.getOrCreate()
 
