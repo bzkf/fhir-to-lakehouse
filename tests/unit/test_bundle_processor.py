@@ -530,9 +530,7 @@ def test_iceberg_bucket_partitioning_and_sort_order(pathling_fixture):
 
     properties = {
         row["key"]: row["value"]
-        for row in pathling_fixture.spark.sql(
-            f"SHOW TBLPROPERTIES {table}"
-        ).collect()
+        for row in pathling_fixture.spark.sql(f"SHOW TBLPROPERTIES {table}").collect()
     }
 
     assert properties["sort-order"] == "id ASC NULLS FIRST"
