@@ -540,9 +540,9 @@ def test_iceberg_bucket_partitioning_and_sort_order(pathling_fixture):
         "WRITE ORDERED BY resets distribution-mode to 'range'; it must be "
         "reset back to the configured mode so regular batches stay cheap"
     )
-    assert properties["write.merge.mode"] == "merge-on-read"
-    assert properties["write.update.mode"] == "merge-on-read"
-    assert properties["write.delete.mode"] == "merge-on-read"
+    assert properties["write.merge.mode"] == "copy-on-write"
+    assert properties["write.update.mode"] == "copy-on-write"
+    assert properties["write.delete.mode"] == "copy-on-write"
 
     partitions = pathling_fixture.spark.sql(
         f"SELECT partition FROM {table}.files"

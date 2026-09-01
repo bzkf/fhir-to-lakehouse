@@ -66,15 +66,14 @@ class IcebergSettings:
     format_version: str = "2"
     target_file_size_bytes: str = str(128 * 1024 * 1024)
     write_distribution_mode: str = "hash"
-    # "merge-on-read" writes small delete/data files per batch instead of
-    # rewriting whole data files on every touched row (the "copy-on-write"
-    # default), which matters a lot for a continuous small-batch streaming
-    # upsert workload like this one. Periodic compaction (see
-    # `_optimize_and_vacuum_iceberg_table`) keeps read-time delete-file
-    # amplification bounded.
-    write_merge_mode: str = "merge-on-read"
-    write_update_mode: str = "merge-on-read"
-    write_delete_mode: str = "merge-on-read"
+    # "copy-on-write" (Iceberg's own default) keeps reads/analytics fast since
+    # queries never have to merge delete files at scan time, at the cost of
+    # rewriting whole data files on every touched row. Switch to
+    # "merge-on-read" instead for a resource type where write/ingestion
+    # throughput is the bottleneck rather than query latency.
+    write_merge_mode: str = "copy-on-write"
+    write_update_mode: str = "copy-on-write"
+    write_delete_mode: str = "copy-on-write"
     partition_columns_by_resource_type: dict[str, list[str]] = {}
     # hash-bucket partitioning on a high-cardinality merge key (e.g. a UUID or
     # hash-based `id`, as FHIR Observation resources typically have) bounds
