@@ -16,17 +16,17 @@ dependencies = [
     "tomli==2.4.1",
     "click==8.4.2",
     "deltalake[pyarrow]==1.6.2",
-    "boto3==1.43.52",
+    "boto3==1.43.73",
 ]
 
 [dependency-groups]
 dev = [
     "kafka-python==2.3.2",
-    "pandas==3.0.3",
+    "pandas==3.0.5",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "testcontainers[minio]==4.14.2",
-    "ruff==0.15.22",
+    "testcontainers[minio]==4.15.0",
+    "ruff==0.16.3",
 ]
 
 [tool.ruff.lint]
