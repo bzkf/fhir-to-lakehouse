@@ -19,10 +19,14 @@ table_format = "delta" # or "iceberg"
 [fhir-to-lakehouse.delta]
 checkpoint_interval = "123"
 
-[fhir-to-lakehouse.delta.clustering_columns_by_resource_type]
-Patient = ["id", "birthDate"]
-Observation = ["id", "effectiveDateTime", "subject"]
-Condition = ["id", "recordedDate", "onsetDateTime", "subject"]
+[fhir-to-lakehouse.delta.tables.Patient]
+clustering_columns = ["id", "birthDate"]
+
+[fhir-to-lakehouse.delta.tables.Observation]
+clustering_columns = ["id", "effectiveDateTime", "subject"]
+
+[fhir-to-lakehouse.delta.tables.Condition]
+clustering_columns = ["id", "recordedDate", "onsetDateTime", "subject"]
 ```
 
 and start the application with the env var `FHIR_TO_LAKEHOUSE_SETTINGS` pointing to this file:
@@ -58,19 +62,14 @@ files in until the next compaction pass (`rewrite_data_files`, run automatically
 batches) catches up.
 
 For resource types with a high-cardinality merge key and a lot of rows (e.g. `Observation`, whose `id` is
-typically a content hash/UUID with no natural range locality), also configure hash-bucket partitioning on that
-key via `iceberg.bucket_column_by_resource_type` / `iceberg.bucket_count_by_resource_type`, and a sort order via
-`iceberg.sort_columns_by_resource_type`:
+typically a content hash/UUID with no natural range locality), also configure hash-bucket partitioning and a sort
+order per resource type under `iceberg.tables.<ResourceType>`:
 
 ```toml
-[fhir-to-lakehouse.iceberg.bucket_column_by_resource_type]
-Observation = "id"
-
-[fhir-to-lakehouse.iceberg.bucket_count_by_resource_type]
-Observation = 128
-
-[fhir-to-lakehouse.iceberg.sort_columns_by_resource_type]
-Observation = ["id"]
+[fhir-to-lakehouse.iceberg.tables.Observation]
+bucket_column = "id"
+bucket_count = 128
+sort_columns = ["id"]
 ```
 
 Bucketing on `id` deterministically confines every row to exactly one of N partitions, so a MERGE only ever has
@@ -78,7 +77,7 @@ to consider the partitions its batch's ids hash into — this holds regardless o
 happens to be clustered, which matters for a hash-like key where a plain sort order alone doesn't create range
 locality. The sort order is applied locally per write task on every batch, and fully enforced across files during
 periodic maintenance (which switches to `rewrite_data_files(..., strategy => 'sort')` automatically once
-`sort_columns_by_resource_type` is set for that resource type).
+`sort_columns` is set for that resource type's table settings).
 
 There's no universal bucket count — size it so each bucket ends up around one-to-a-few `write.target-file-size-bytes`
 files once the table matures: `bucket_count ≈ expected_total_data_size / (write.target_file_size_bytes × files_per_bucket)`.
