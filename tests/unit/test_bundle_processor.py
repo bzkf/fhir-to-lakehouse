@@ -487,6 +487,70 @@ def test_iceberg_vacuum_and_optimize(pathling_fixture):
     assert result_df.first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
 
 
+def test_iceberg_bucket_partitioning_and_sort_order(pathling_fixture):
+    put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
+
+    data = {
+        "key": "key",
+        "value": put_bundle,
+        "timestamp": datetime.datetime.now(),
+        "partition": 0,
+        "offset": 0,
+    }
+
+    df = pathling_fixture.spark.createDataFrame([data])
+
+    namespace = "test_iceberg_bucket_partitioning_and_sort_order"
+    settings = Settings(
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        iceberg=IcebergSettings(
+            namespace=namespace,
+            bucket_column_by_resource_type={"Patient": "id"},
+            bucket_count_by_resource_type={"Patient": 4},
+            sort_columns_by_resource_type={"Patient": ["id"]},
+        ),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        table_format="iceberg",
+    )
+
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
+
+    # batch_id of 0 already triggers the upkeep interval, exercising the
+    # sort-strategy rewrite_data_files call
+    bp.process_batch(df, 0)
+
+    table = f"iceberg.{namespace}.Patient"
+    result_df = pathling_fixture.spark.table(table)
+
+    assert result_df.count() == 1
+    assert result_df.first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+
+    properties = {
+        row["key"]: row["value"]
+        for row in pathling_fixture.spark.sql(
+            f"SHOW TBLPROPERTIES {table}"
+        ).collect()
+    }
+
+    assert properties["sort-order"] == "id ASC NULLS FIRST"
+    assert properties["write.distribution-mode"] == "hash", (
+        "WRITE ORDERED BY resets distribution-mode to 'range'; it must be "
+        "reset back to the configured mode so regular batches stay cheap"
+    )
+    assert properties["write.merge.mode"] == "merge-on-read"
+    assert properties["write.update.mode"] == "merge-on-read"
+    assert properties["write.delete.mode"] == "merge-on-read"
+
+    partitions = pathling_fixture.spark.sql(
+        f"SELECT partition FROM {table}.files"
+    ).collect()
+    assert len(partitions) == 1
+    assert partitions[0]["partition"]["id_bucket"] is not None
+
+
 def test_iceberg_batch_with_put_and_delete_should_only_retain_latest(pathling_fixture):
     data = [
         {

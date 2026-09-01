@@ -66,7 +66,26 @@ class IcebergSettings:
     format_version: str = "2"
     target_file_size_bytes: str = str(128 * 1024 * 1024)
     write_distribution_mode: str = "hash"
+    # "merge-on-read" writes small delete/data files per batch instead of
+    # rewriting whole data files on every touched row (the "copy-on-write"
+    # default), which matters a lot for a continuous small-batch streaming
+    # upsert workload like this one. Periodic compaction (see
+    # `_optimize_and_vacuum_iceberg_table`) keeps read-time delete-file
+    # amplification bounded.
+    write_merge_mode: str = "merge-on-read"
+    write_update_mode: str = "merge-on-read"
+    write_delete_mode: str = "merge-on-read"
     partition_columns_by_resource_type: dict[str, list[str]] = {}
+    # hash-bucket partitioning on a high-cardinality merge key (e.g. a UUID or
+    # hash-based `id`, as FHIR Observation resources typically have) bounds
+    # how many files/partitions any single MERGE batch has to consider,
+    # regardless of how well-clustered the rest of the table is.
+    bucket_column_by_resource_type: dict[str, str] = {}
+    bucket_count_by_resource_type: dict[str, int] = {}
+    # sets the table's default sort order (`WRITE ORDERED BY`); only takes
+    # full effect once combined with periodic sort-strategy compaction, since
+    # regular streaming writes only apply this sort order locally per task.
+    sort_columns_by_resource_type: dict[str, list[str]] = {}
 
 
 @ts.settings

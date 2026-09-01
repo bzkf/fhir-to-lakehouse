@@ -486,12 +486,29 @@ class BundleProcessor:
 
         self.pc.spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {namespace}")
 
-        partition_clause = ""
+        partition_parts = []
+
+        bucket_column = iceberg.bucket_column_by_resource_type.get(resource_type)
+        bucket_count = iceberg.bucket_count_by_resource_type.get(resource_type)
+        if bucket_column and bucket_count:
+            partition_parts.append(f"bucket({bucket_count}, {bucket_column})")
+        elif bucket_column or bucket_count:
+            logger.warning(
+                "Ignoring incomplete bucket partitioning config for "
+                "{resource_type}: both bucket_column_by_resource_type and "
+                "bucket_count_by_resource_type must be set",
+                resource_type=resource_type,
+            )
+
         partition_columns = iceberg.partition_columns_by_resource_type.get(
             resource_type
         )
         if partition_columns:
-            partition_clause = f"PARTITIONED BY ({', '.join(partition_columns)})"
+            partition_parts.extend(partition_columns)
+
+        partition_clause = (
+            f"PARTITIONED BY ({', '.join(partition_parts)})" if partition_parts else ""
+        )
 
         create_table_query = (
             f"CREATE TABLE IF NOT EXISTS {table_identifier} "
@@ -500,11 +517,30 @@ class BundleProcessor:
             "TBLPROPERTIES ("
             f"'format-version'='{iceberg.format_version}', "
             f"'write.target-file-size-bytes'='{iceberg.target_file_size_bytes}', "
-            f"'write.distribution-mode'='{iceberg.write_distribution_mode}'"
+            f"'write.distribution-mode'='{iceberg.write_distribution_mode}', "
+            f"'write.merge.mode'='{iceberg.write_merge_mode}', "
+            f"'write.update.mode'='{iceberg.write_update_mode}', "
+            f"'write.delete.mode'='{iceberg.write_delete_mode}'"
             ")"
         )
         logger.info(create_table_query)
         self.pc.spark.sql(create_table_query)
+
+        sort_columns = iceberg.sort_columns_by_resource_type.get(resource_type)
+        if sort_columns:
+            self.pc.spark.sql(
+                f"ALTER TABLE {table_identifier} WRITE ORDERED BY "
+                f"{', '.join(sort_columns)}"
+            )
+            # WRITE ORDERED BY switches write.distribution-mode to 'range' as
+            # a side effect, which would force a full global shuffle+sort on
+            # every micro-batch merge. Reset it back so regular batches stay
+            # cheap (locally sorted per task) and only the periodic
+            # sort-strategy compaction pays for a full re-sort.
+            self.pc.spark.sql(
+                f"ALTER TABLE {table_identifier} SET TBLPROPERTIES "
+                f"('write.distribution-mode'='{iceberg.write_distribution_mode}')"
+            )
 
         return table_identifier
 
@@ -594,6 +630,16 @@ class BundleProcessor:
         catalog_name = self.settings.iceberg.catalog_name
         table_ref = self._iceberg_table_ref(resource_type)
 
+        # use the table's default sort order (set via WRITE ORDERED BY in
+        # _create_iceberg_table_if_not_exists) to actually re-cluster files
+        # during this periodic maintenance pass; regular streaming writes
+        # only sort locally per task and don't fix up the whole table's
+        # file layout on their own.
+        sort_columns = self.settings.iceberg.sort_columns_by_resource_type.get(
+            resource_type
+        )
+        strategy_clause = ", strategy => 'sort'" if sort_columns else ""
+
         with MeasureElapsed(
             table_operations_timer,
             {
@@ -603,7 +649,8 @@ class BundleProcessor:
             },
         ):
             rewrite_df = self.pc.spark.sql(
-                f"CALL {catalog_name}.system.rewrite_data_files(table => '{table_ref}')"
+                f"CALL {catalog_name}.system.rewrite_data_files("
+                f"table => '{table_ref}'{strategy_clause})"
             )
 
         logger.info(

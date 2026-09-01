@@ -47,6 +47,44 @@ expiry via `expire_snapshots`) runs periodically, just like `OPTIMIZE`/`VACUUM` 
 Both Delta and Iceberg jars are always installed, regardless of `table_format`, so switching formats doesn't
 require re-downloading packages at container startup.
 
+#### Tuning Iceberg tables for large, continuously-upserted resource types
+
+Iceberg's default `write.merge.mode`/`write.update.mode`/`write.delete.mode` is copy-on-write, which rewrites an
+entire data file whenever a single row in it changes. `IcebergSettings` defaults these to `merge-on-read` instead
+(`iceberg.write_merge_mode`, `iceberg.write_update_mode`, `iceberg.write_delete_mode`), which is much cheaper for
+the continuous small-batch upserts this application does: each batch just writes small delete/data files instead
+of rewriting whatever files it touches. Periodic compaction (`rewrite_data_files`, run automatically every
+`spark.upkeep_interval` batches) keeps the resulting read-time delete-file overhead bounded.
+
+For resource types with a high-cardinality merge key and a lot of rows (e.g. `Observation`, whose `id` is
+typically a content hash/UUID with no natural range locality), also configure hash-bucket partitioning on that
+key via `iceberg.bucket_column_by_resource_type` / `iceberg.bucket_count_by_resource_type`, and a sort order via
+`iceberg.sort_columns_by_resource_type`:
+
+```toml
+[fhir-to-lakehouse.iceberg.bucket_column_by_resource_type]
+Observation = "id"
+
+[fhir-to-lakehouse.iceberg.bucket_count_by_resource_type]
+Observation = 128
+
+[fhir-to-lakehouse.iceberg.sort_columns_by_resource_type]
+Observation = ["id"]
+```
+
+Bucketing on `id` deterministically confines every row to exactly one of N partitions, so a MERGE only ever has
+to consider the partitions its batch's ids hash into — this holds regardless of how well the rest of the table
+happens to be clustered, which matters for a hash-like key where a plain sort order alone doesn't create range
+locality. The sort order is applied locally per write task on every batch, and fully enforced across files during
+periodic maintenance (which switches to `rewrite_data_files(..., strategy => 'sort')` automatically once
+`sort_columns_by_resource_type` is set for that resource type).
+
+There's no universal bucket count — size it so each bucket ends up around one-to-a-few `write.target-file-size-bytes`
+files once the table matures: `bucket_count ≈ expected_total_data_size / (write.target_file_size_bytes × files_per_bucket)`.
+For "several hundred million" `Observation` rows, a starting point in the range of 64–256 (pick a power of 2) is
+reasonable; check the average file size after a few compaction passes and adjust if files consistently end up far
+from the target size.
+
 ### Spark Config
 
 By default, the `SPARK_CONF_DIR` environment variable inside the container is set to `/app/spark/conf`, so you
