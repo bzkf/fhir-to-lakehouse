@@ -228,11 +228,15 @@ class BundleProcessor:
             )
         )
 
-        clustering_columns_by_resource_type = (
-            self.settings.delta.clustering_columns_by_resource_type
-        )
-        if cluster_columns := clustering_columns_by_resource_type.get(resource_type):
-            delta_table_builder = delta_table_builder.clusterBy(cluster_columns)
+        table_settings = self.settings.delta.tables.get(resource_type)
+        if table_settings and table_settings.clustering_columns:
+            delta_table_builder = delta_table_builder.clusterBy(
+                table_settings.clustering_columns
+            )
+        if table_settings and table_settings.enable_deletion_vectors:
+            delta_table_builder = delta_table_builder.property(
+                "delta.enableDeletionVectors", "true"
+            )
 
         delta_table = delta_table_builder.execute()
 
@@ -486,23 +490,23 @@ class BundleProcessor:
 
         self.pc.spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {namespace}")
 
+        table_settings = iceberg.tables.get(resource_type)
+
         partition_parts = []
 
-        bucket_column = iceberg.bucket_column_by_resource_type.get(resource_type)
-        bucket_count = iceberg.bucket_count_by_resource_type.get(resource_type)
+        bucket_column = table_settings.bucket_column if table_settings else ""
+        bucket_count = table_settings.bucket_count if table_settings else 0
         if bucket_column and bucket_count:
             partition_parts.append(f"bucket({bucket_count}, {bucket_column})")
         elif bucket_column or bucket_count:
             logger.warning(
                 "Ignoring incomplete bucket partitioning config for "
-                "{resource_type}: both bucket_column_by_resource_type and "
-                "bucket_count_by_resource_type must be set",
+                "{resource_type}: both bucket_column and bucket_count must "
+                "be set",
                 resource_type=resource_type,
             )
 
-        partition_columns = iceberg.partition_columns_by_resource_type.get(
-            resource_type
-        )
+        partition_columns = table_settings.partition_columns if table_settings else []
         if partition_columns:
             partition_parts.extend(partition_columns)
 
@@ -526,7 +530,7 @@ class BundleProcessor:
         logger.info(create_table_query)
         self.pc.spark.sql(create_table_query)
 
-        sort_columns = iceberg.sort_columns_by_resource_type.get(resource_type)
+        sort_columns = table_settings.sort_columns if table_settings else []
         if sort_columns:
             self.pc.spark.sql(
                 f"ALTER TABLE {table_identifier} WRITE ORDERED BY "
@@ -635,9 +639,8 @@ class BundleProcessor:
         # during this periodic maintenance pass; regular streaming writes
         # only sort locally per task and don't fix up the whole table's
         # file layout on their own.
-        sort_columns = self.settings.iceberg.sort_columns_by_resource_type.get(
-            resource_type
-        )
+        table_settings = self.settings.iceberg.tables.get(resource_type)
+        sort_columns = table_settings.sort_columns if table_settings else []
         strategy_clause = ", strategy => 'sort'" if sort_columns else ""
 
         with MeasureElapsed(

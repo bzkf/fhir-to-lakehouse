@@ -43,13 +43,35 @@ class SparkSettings:
 
 
 @ts.settings
+class DeltaTableSettings:
+    clustering_columns: list[str] = []
+    enable_deletion_vectors: bool = False
+
+
+@ts.settings
 class DeltaSettings:
     auto_optimize_auto_compact: str = "false"
     auto_optimize_optimize_write: str = "false"
     checkpoint_interval: str = "100"
     checkpoint_write_stats_as_json: str = "false"
     checkpoint_write_stats_as_struct: str = "true"
-    clustering_columns_by_resource_type: dict[str, list[str]] = {}
+    tables: dict[str, DeltaTableSettings] = {}
+
+
+@ts.settings
+class IcebergTableSettings:
+    # hash-bucket partitioning on a high-cardinality merge key (e.g. a UUID
+    # or hash-based `id`, as FHIR Observation resources typically have)
+    # bounds how many files/partitions any single MERGE batch has to
+    # consider, regardless of how well-clustered the rest of the table is.
+    # Both bucket_column and bucket_count must be set for bucketing to apply.
+    bucket_column: str = ""
+    bucket_count: int = 0
+    # sets the table's default sort order (`WRITE ORDERED BY`); only takes
+    # full effect once combined with periodic sort-strategy compaction, since
+    # regular streaming writes only apply this sort order locally per task.
+    sort_columns: list[str] = []
+    partition_columns: list[str] = []
 
 
 @ts.settings
@@ -74,17 +96,7 @@ class IcebergSettings:
     write_merge_mode: str = "copy-on-write"
     write_update_mode: str = "copy-on-write"
     write_delete_mode: str = "copy-on-write"
-    partition_columns_by_resource_type: dict[str, list[str]] = {}
-    # hash-bucket partitioning on a high-cardinality merge key (e.g. a UUID or
-    # hash-based `id`, as FHIR Observation resources typically have) bounds
-    # how many files/partitions any single MERGE batch has to consider,
-    # regardless of how well-clustered the rest of the table is.
-    bucket_column_by_resource_type: dict[str, str] = {}
-    bucket_count_by_resource_type: dict[str, int] = {}
-    # sets the table's default sort order (`WRITE ORDERED BY`); only takes
-    # full effect once combined with periodic sort-strategy compaction, since
-    # regular streaming writes only apply this sort order locally per task.
-    sort_columns_by_resource_type: dict[str, list[str]] = {}
+    tables: dict[str, IcebergTableSettings] = {}
 
 
 @ts.settings

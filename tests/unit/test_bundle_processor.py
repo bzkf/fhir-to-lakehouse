@@ -12,7 +12,9 @@ from testcontainers.minio import MinioContainer
 from bundle_processor import BundleProcessor
 from settings import (
     DeltaSettings,
+    DeltaTableSettings,
     IcebergSettings,
+    IcebergTableSettings,
     KafkaSettings,
     KafkaSslSettings,
     Settings,
@@ -269,16 +271,14 @@ def test_liquid_clustering(pathling_fixture, tmp_path):
 
     df = pathling_fixture.spark.createDataFrame([data])
 
-    clustering_columns_by_resource_type = {
-        "Patient": ["id", "birthDate"],
-    }
-
     d = tmp_path / "warehouse" / "data"
     settings = Settings(
         delta_database_dir=d.as_posix(),
         spark=SparkSettings(),
         delta=DeltaSettings(
-            clustering_columns_by_resource_type=clustering_columns_by_resource_type
+            tables={
+                "Patient": DeltaTableSettings(clustering_columns=["id", "birthDate"])
+            }
         ),
         kafka=KafkaSettings(ssl=KafkaSslSettings()),
         iceberg=IcebergSettings(),
@@ -296,6 +296,50 @@ def test_liquid_clustering(pathling_fixture, tmp_path):
 
     assert dt.toDF().count() == 1
     assert dt.toDF().first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+
+
+def test_deletion_vectors_enabled_sets_table_property(pathling_fixture, tmp_path):
+    put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
+
+    data = {
+        "key": "key",
+        "value": put_bundle,
+        "timestamp": datetime.datetime.now(),
+        "partition": 0,
+        "offset": 0,
+    }
+
+    df = pathling_fixture.spark.createDataFrame([data])
+
+    d = tmp_path / "warehouse" / "data"
+    settings = Settings(
+        delta_database_dir=d.as_posix(),
+        spark=SparkSettings(),
+        delta=DeltaSettings(
+            tables={"Patient": DeltaTableSettings(enable_deletion_vectors=True)}
+        ),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+        iceberg=IcebergSettings(),
+    )
+
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    df = bp.prepare_stream(df)
+
+    bp.process_batch(df, 1)
+
+    table_path = (d / "Patient.parquet").as_posix()
+    dt = DeltaTable.forPath(pathling_fixture.spark, table_path)
+
+    assert dt.toDF().count() == 1
+
+    properties = {
+        row["key"]: row["value"]
+        for row in pathling_fixture.spark.sql(
+            f"SHOW TBLPROPERTIES delta.`{table_path}`"
+        ).collect()
+    }
+    assert properties["delta.enableDeletionVectors"] == "true"
 
 
 def test_batch_with_put_and_delete_should_only_retain_latest(
@@ -466,7 +510,7 @@ def test_iceberg_vacuum_and_optimize(pathling_fixture):
         delta=DeltaSettings(),
         iceberg=IcebergSettings(
             namespace="test_iceberg_vacuum_and_optimize",
-            partition_columns_by_resource_type={"Patient": ["gender"]},
+            tables={"Patient": IcebergTableSettings(partition_columns=["gender"])},
         ),
         kafka=KafkaSettings(ssl=KafkaSslSettings()),
         table_format="iceberg",
@@ -506,9 +550,13 @@ def test_iceberg_bucket_partitioning_and_sort_order(pathling_fixture):
         delta=DeltaSettings(),
         iceberg=IcebergSettings(
             namespace=namespace,
-            bucket_column_by_resource_type={"Patient": "id"},
-            bucket_count_by_resource_type={"Patient": 4},
-            sort_columns_by_resource_type={"Patient": ["id"]},
+            tables={
+                "Patient": IcebergTableSettings(
+                    bucket_column="id",
+                    bucket_count=4,
+                    sort_columns=["id"],
+                )
+            },
         ),
         kafka=KafkaSettings(ssl=KafkaSslSettings()),
         table_format="iceberg",
