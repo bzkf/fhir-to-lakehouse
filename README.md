@@ -49,12 +49,13 @@ require re-downloading packages at container startup.
 
 #### Tuning Iceberg tables for large, continuously-upserted resource types
 
-Iceberg's default `write.merge.mode`/`write.update.mode`/`write.delete.mode` is copy-on-write, which rewrites an
-entire data file whenever a single row in it changes. `IcebergSettings` defaults these to `merge-on-read` instead
-(`iceberg.write_merge_mode`, `iceberg.write_update_mode`, `iceberg.write_delete_mode`), which is much cheaper for
-the continuous small-batch upserts this application does: each batch just writes small delete/data files instead
-of rewriting whatever files it touches. Periodic compaction (`rewrite_data_files`, run automatically every
-`spark.upkeep_interval` batches) keeps the resulting read-time delete-file overhead bounded.
+`iceberg.write_merge_mode` / `iceberg.write_update_mode` / `iceberg.write_delete_mode` default to `copy-on-write`
+(Iceberg's own default), which keeps reads/analytics fast since queries never have to merge delete files at scan
+time — the cost is that every batch rewrites whole data files for any row it touches. Switch these to
+`merge-on-read` instead for a resource type where write/ingestion throughput is the bottleneck rather than query
+latency: each batch then only writes small delete/data files, at the cost of scans having to merge those delete
+files in until the next compaction pass (`rewrite_data_files`, run automatically every `spark.upkeep_interval`
+batches) catches up.
 
 For resource types with a high-cardinality merge key and a lot of rows (e.g. `Observation`, whose `id` is
 typically a content hash/UUID with no natural range locality), also configure hash-bucket partitioning on that
