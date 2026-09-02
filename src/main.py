@@ -79,7 +79,9 @@ spark_config = (
     )
     .config(
         f"spark.sql.catalog.{settings.iceberg.catalog_name}.warehouse",
-        settings.iceberg_database_dir,
+        settings.iceberg.catalog_warehouse
+        if settings.iceberg.catalog_type == "rest"
+        else settings.iceberg_database_dir,
     )
     .config(
         "spark.hadoop.fs.s3a.path.style.access",
@@ -109,6 +111,15 @@ if settings.metastore_url:
             f"spark.sql.catalog.{settings.iceberg.catalog_name}.uri",
             settings.metastore_url,
         )
+
+if settings.iceberg.catalog_type == "rest":
+    spark_config = spark_config.config(
+        f"spark.sql.catalog.{settings.iceberg.catalog_name}.uri",
+        settings.iceberg.catalog_uri,
+    ).config(
+        f"spark.sql.catalog.{settings.iceberg.catalog_name}.io-impl",
+        "org.apache.iceberg.aws.s3.S3FileIO",
+    )
 
 spark = spark_config.getOrCreate()
 
