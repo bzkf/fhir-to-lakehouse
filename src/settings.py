@@ -82,8 +82,18 @@ class IcebergSettings:
     catalog_name: str = "iceberg"
     # "hadoop" stores catalog metadata directly under `iceberg_database_dir`
     # without requiring a Hive metastore. Use "hive" together with
-    # `metastore_url` to register tables in a Hive metastore instead.
+    # `metastore_url` to register tables in a Hive metastore instead. Use
+    # "rest" together with `catalog_uri`/`catalog_warehouse` to register
+    # tables in an Iceberg REST catalog, e.g. Lakekeeper.
     catalog_type: str = "hadoop"
+    # base URL of the Iceberg REST catalog, e.g. http://lakekeeper:8181/catalog.
+    # Only used when catalog_type == "rest".
+    catalog_uri: str = ""
+    # name of the warehouse to use in the REST catalog (as registered there,
+    # not an S3 path - the REST catalog owns the physical storage location).
+    # Only used when catalog_type == "rest"; ignored for "hadoop"/"hive",
+    # which use `iceberg_database_dir` instead.
+    catalog_warehouse: str = ""
     namespace: str = "default"
     format_version: str = "2"
     target_file_size_bytes: str = str(128 * 1024 * 1024)

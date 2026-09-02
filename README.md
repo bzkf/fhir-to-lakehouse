@@ -45,8 +45,11 @@ Set `table_format = "iceberg"` (or the env var `FHIR_TO_LAKEHOUSE_TABLE_FORMAT=i
 configured via the `iceberg` settings (`iceberg.catalog_name`, default `iceberg`) and are stored under
 `iceberg_database_dir`. By default, a Hadoop catalog is used (`iceberg.catalog_type = "hadoop"`), which doesn't
 require a Hive metastore; set `iceberg.catalog_type = "hive"` together with `metastore_url` to register Iceberg
-tables in a Hive metastore instead. Table maintenance (file compaction via `rewrite_data_files` and old-snapshot
-expiry via `expire_snapshots`) runs periodically, just like `OPTIMIZE`/`VACUUM` do for Delta tables.
+tables in a Hive metastore instead, or `iceberg.catalog_type = "rest"` together with `iceberg.catalog_uri` and
+`iceberg.catalog_warehouse` to register tables in an Iceberg REST catalog such as
+[Lakekeeper](https://docs.lakekeeper.io/) instead (see "Iceberg REST catalog (Lakekeeper)" below). Table
+maintenance (file compaction via `rewrite_data_files` and old-snapshot expiry via `expire_snapshots`) runs
+periodically, just like `OPTIMIZE`/`VACUUM` do for Delta tables.
 
 Both Delta and Iceberg jars are always installed, regardless of `table_format`, so switching formats doesn't
 require re-downloading packages at container startup.
@@ -84,6 +87,52 @@ files once the table matures: `bucket_count ≈ expected_total_data_size / (writ
 For "several hundred million" `Observation` rows, a starting point in the range of 64–256 (pick a power of 2) is
 reasonable; check the average file size after a few compaction passes and adjust if files consistently end up far
 from the target size.
+
+#### Iceberg REST catalog (Lakekeeper)
+
+[compose.lakekeeper.yaml](compose.lakekeeper.yaml) adds a [Lakekeeper](https://docs.lakekeeper.io/) REST catalog
+(plus its Postgres metadata store) to the dev fixtures, for testing `iceberg.catalog_type = "rest"` against
+something closer to a production catalog than the default Hadoop catalog. It runs without authentication, matching
+this project's other dev fixtures (Kafka, MinIO) - don't reuse it as-is for anything but local dev.
+
+Start it together with the base fixtures ([compose.yaml](compose.yaml), for Kafka/MinIO):
+
+```sh
+docker compose -f compose.yaml -f compose.lakekeeper.yaml up
+```
+
+This also runs two one-shot containers that call Lakekeeper's management API to bootstrap it and register a
+warehouse named `fhir` backed by the same MinIO bucket the Hadoop catalog uses
+(storage config in [hack/lakekeeper/create-fhir-warehouse.json](hack/lakekeeper/create-fhir-warehouse.json)).
+Lakekeeper's REST API is then reachable at <http://localhost:8181>.
+
+Point the application at it with a settings file:
+
+```toml
+[fhir-to-lakehouse]
+table_format = "iceberg"
+
+[fhir-to-lakehouse.iceberg]
+catalog_type = "rest"
+catalog_uri = "http://localhost:8181/catalog"
+catalog_warehouse = "fhir"
+```
+
+```sh
+FHIR_TO_LAKEHOUSE_SETTINGS=settings.toml uv run src/main.py
+```
+
+Once running (with `mock-data-loader` from compose.yaml feeding sample bundles through Kafka), tables get created
+in the `fhir` warehouse's `default` namespace on first batch per resource type, the same way they would against the
+Hadoop catalog. To confirm, either point a `spark-sql`/`pyspark` shell at the same `iceberg.catalog_type = "rest"`
+config shown above and run `SHOW TABLES IN iceberg.default;`, or list them via Lakekeeper's REST API - the Iceberg
+REST spec addresses warehouses by an opaque `prefix` (not the warehouse name), which the catalog resolves in its
+`/v1/config` response:
+
+```sh
+prefix=$(curl -s "http://localhost:8181/catalog/v1/config?warehouse=fhir" | jq -r '.defaults.prefix')
+curl -s "http://localhost:8181/catalog/v1/$prefix/namespaces/default/tables" | jq
+```
 
 ### Spark Config
 

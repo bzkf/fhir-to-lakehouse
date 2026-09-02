@@ -53,6 +53,7 @@ spark_config = (
                 "au.csiro.pathling:library-runtime:9.8.0",
                 "io.delta:delta-spark_2.13:4.0.0",
                 "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.11.0",
+                "org.apache.iceberg:iceberg-aws-bundle:1.11.0",
                 "org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2",
                 "org.apache.hadoop:hadoop-aws:3.4.1",
             ]
@@ -90,7 +91,9 @@ spark_config = (
     )
     .config(
         f"spark.sql.catalog.{settings.iceberg.catalog_name}.warehouse",
-        settings.iceberg_database_dir,
+        settings.iceberg.catalog_warehouse
+        if settings.iceberg.catalog_type == "rest"
+        else settings.iceberg_database_dir,
     )
     .config(
         "spark.hadoop.fs.s3a.path.style.access",
@@ -120,6 +123,15 @@ if settings.metastore_url:
             f"spark.sql.catalog.{settings.iceberg.catalog_name}.uri",
             settings.metastore_url,
         )
+
+if settings.iceberg.catalog_type == "rest":
+    spark_config = spark_config.config(
+        f"spark.sql.catalog.{settings.iceberg.catalog_name}.uri",
+        settings.iceberg.catalog_uri,
+    ).config(
+        f"spark.sql.catalog.{settings.iceberg.catalog_name}.io-impl",
+        "org.apache.iceberg.aws.s3.S3FileIO",
+    )
 
 spark = spark_config.getOrCreate()
 
