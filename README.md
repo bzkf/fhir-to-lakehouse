@@ -142,7 +142,20 @@ can mount a `spark-defaults.conf` file at `/app/spark/conf/spark-defaults.conf` 
 ## Lakehousekeeper
 
 A CLI tool called `lakehousekeeper` is also part of the container distribution.
-It implements commands for vacuuming, optimizing, and registering tables from S3-compatible object storage.
+It implements commands for vacuuming, optimizing, and registering Delta tables from S3-compatible object storage,
+and for running maintenance (`rewrite_data_files`/`expire_snapshots`) against Iceberg tables via `iceberg-optimize`
+and `iceberg-expire-snapshots`. Unlike the Delta commands, which discover tables by listing an S3 prefix directly,
+the Iceberg commands go through the catalog (`--catalog-type hadoop`/`hive`/`rest`, matching `iceberg.catalog_type`)
+and sweep every table in a given `--namespace`:
+
+```sh
+lakehousekeeper.py iceberg-optimize --catalog-type hadoop \
+  --warehouse-dir s3a://fhir/warehouse-iceberg --namespace default
+
+lakehousekeeper.py iceberg-expire-snapshots --catalog-type rest \
+  --catalog-uri http://lakekeeper:8181/catalog --catalog-warehouse fhir --namespace default
+```
+
 You can invoke it by running:
 
 <!-- x-release-please-start-version -->
