@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import re
+from datetime import UTC, datetime, timedelta
 
 from delta import DeltaTable
 from loguru import logger
@@ -18,17 +20,27 @@ from tenacity import (
 from metrics import MeasureElapsed, meter
 from settings import Settings
 
-delta_operations_timer = meter.create_histogram(
-    name="delta-operation-duration",
+table_operations_timer = meter.create_histogram(
+    name="table-operation-duration",
     unit="seconds",
-    description="Duration of Delta Table operations",
+    description="Duration of Delta/Iceberg Table operations",
 )
 
 resources_processed_counter = meter.create_counter(
     name="resources-processed-total",
     unit="{Count}",
-    description="Total number of resources written or deleted from Delta Tables",
+    description="Total number of resources written or deleted from Delta/Iceberg",
 )
+
+# FHIR resource type names are always PascalCase alphanumeric, e.g. "Patient".
+# resource_type is derived from Kafka message content (the bundle entry's
+# `request.url`), so it must be validated before it's interpolated into any
+# SQL identifier (table/namespace names, CALL procedure arguments).
+_VALID_RESOURCE_TYPE = re.compile(r"^[A-Za-z][A-Za-z0-9]*$")
+
+
+def _is_valid_resource_type(resource_type: str) -> bool:
+    return bool(_VALID_RESOURCE_TYPE.fullmatch(resource_type))
 
 
 class BundleProcessor:
@@ -107,6 +119,13 @@ class BundleProcessor:
             # should only ever be one resource_type in the batch.
             # In the default case, the batch may contain multiple resource types.
             for resource_type in resource_types_in_batch:
+                if not _is_valid_resource_type(resource_type):
+                    logger.warning(
+                        "Skipping batch of invalid resource_type: {resource_type}",
+                        resource_type=resource_type,
+                    )
+                    continue
+
                 resource_df = micro_batch_df.filter(
                     f"resource_type = '{resource_type}'"
                 )
@@ -165,6 +184,20 @@ class BundleProcessor:
             column="resource",
         )
 
+        delete_df = single_resource_type_df.filter("request_method = 'DELETE'")
+
+        if self.settings.table_format == "iceberg":
+            self._process_iceberg(resource_df, delete_df, resource_type, batch_id)
+        else:
+            self._process_delta(resource_df, delete_df, resource_type, batch_id)
+
+    def _process_delta(
+        self,
+        resource_df: DataFrame,
+        delete_df: DataFrame,
+        resource_type: str,
+        batch_id: int,
+    ):
         resource_delta_table_path = os.path.join(
             self.settings.delta_database_dir, f"{resource_type}.parquet"
         )
@@ -195,11 +228,15 @@ class BundleProcessor:
             )
         )
 
-        clustering_columns_by_resource_type = (
-            self.settings.delta.clustering_columns_by_resource_type
-        )
-        if cluster_columns := clustering_columns_by_resource_type.get(resource_type):
-            delta_table_builder = delta_table_builder.clusterBy(cluster_columns)
+        table_settings = self.settings.delta.tables.get(resource_type)
+        if table_settings and table_settings.clustering_columns:
+            delta_table_builder = delta_table_builder.clusterBy(
+                table_settings.clustering_columns
+            )
+        if table_settings and table_settings.enable_deletion_vectors:
+            delta_table_builder = delta_table_builder.property(
+                "delta.enableDeletionVectors", "true"
+            )
 
         delta_table = delta_table_builder.execute()
 
@@ -211,25 +248,35 @@ class BundleProcessor:
         # XXX: not necessary for every batch...
         if self.settings.metastore_url:
             with MeasureElapsed(
-                delta_operations_timer,
-                {"operation": "register", "resource_type": resource_type},
+                table_operations_timer,
+                {
+                    "operation": "register",
+                    "resource_type": resource_type,
+                    "table_format": "delta",
+                },
             ):
                 self._register_table_in_metastore(
                     delta_table, resource_delta_table_path
                 )
 
         with MeasureElapsed(
-            delta_operations_timer,
-            {"operation": "merge", "resource_type": resource_type},
+            table_operations_timer,
+            {
+                "operation": "merge",
+                "resource_type": resource_type,
+                "table_format": "delta",
+            },
         ):
             self._merge_into_table(resource_df, resource_type, delta_table)
 
-        delete_df = single_resource_type_df.filter("request_method = 'DELETE'")
-
         if delete_df.count() > 0:
             with MeasureElapsed(
-                delta_operations_timer,
-                {"operation": "delete", "resource_type": resource_type},
+                table_operations_timer,
+                {
+                    "operation": "delete",
+                    "resource_type": resource_type,
+                    "table_format": "delta",
+                },
             ):
                 self._delete_from_table(delete_df, resource_type, delta_table)
 
@@ -262,7 +309,12 @@ class BundleProcessor:
         )
 
         resources_processed_counter.add(
-            resources_count, {"operation": "written", "resource_type": resource_type}
+            resources_count,
+            {
+                "operation": "written",
+                "resource_type": resource_type,
+                "table_format": "delta",
+            },
         )
 
     @retry(
@@ -292,7 +344,12 @@ class BundleProcessor:
         )
 
         resources_processed_counter.add(
-            deletes_count, {"operation": "delete", "resource_type": resource_type}
+            deletes_count,
+            {
+                "operation": "delete",
+                "resource_type": resource_type,
+                "table_format": "delta",
+            },
         )
 
     @retry(
@@ -304,8 +361,12 @@ class BundleProcessor:
         logger.info("Optimizing and vacuuming table")
 
         with MeasureElapsed(
-            delta_operations_timer,
-            {"operation": "optimize", "resource_type": resource_type},
+            table_operations_timer,
+            {
+                "operation": "optimize",
+                "resource_type": resource_type,
+                "table_format": "delta",
+            },
         ):
             optimize_df = delta_table.optimize().executeCompaction()
 
@@ -315,8 +376,12 @@ class BundleProcessor:
         )
 
         with MeasureElapsed(
-            delta_operations_timer,
-            {"operation": "vacuum", "resource_type": resource_type},
+            table_operations_timer,
+            {
+                "operation": "vacuum",
+                "resource_type": resource_type,
+                "table_format": "delta",
+            },
         ):
             delta_table.vacuum(retentionHours=self.settings.vacuum_retention_hours)
 
@@ -355,3 +420,268 @@ class BundleProcessor:
         )
         logger.info(create_table_query)
         self.pc.spark.sql(create_table_query)
+
+    def _process_iceberg(
+        self,
+        resource_df: DataFrame,
+        delete_df: DataFrame,
+        resource_type: str,
+        batch_id: int,
+    ):
+        # unlike Delta, creating the table already registers it with the
+        # Iceberg catalog (Hive metastore or otherwise), so there's no
+        # separate metastore-registration step needed here.
+        table_identifier = self._create_iceberg_table_if_not_exists(
+            resource_df, resource_type
+        )
+
+        with MeasureElapsed(
+            table_operations_timer,
+            {
+                "operation": "merge",
+                "resource_type": resource_type,
+                "table_format": "iceberg",
+            },
+        ):
+            self._merge_into_iceberg_table(resource_df, resource_type, table_identifier)
+
+        if delete_df.count() > 0:
+            with MeasureElapsed(
+                table_operations_timer,
+                {
+                    "operation": "delete",
+                    "resource_type": resource_type,
+                    "table_format": "iceberg",
+                },
+            ):
+                self._delete_from_iceberg_table(
+                    delete_df, resource_type, table_identifier
+                )
+
+        # TODO: should optimize/expire snapshots for all tables, not just the
+        # ones in the batch
+        if batch_id % self.settings.spark.upkeep_interval == 0:
+            self._optimize_and_vacuum_iceberg_table(resource_type)
+
+    def _iceberg_table_ref(self, resource_type: str) -> str:
+        """The namespace-qualified table name, without the catalog prefix.
+
+        This is the form expected by the `table` argument of Iceberg's
+        system stored procedures (CALL <catalog>.system.<procedure>(...)).
+        """
+        return f"{self.settings.iceberg.namespace}.{resource_type}"
+
+    def _iceberg_table_identifier(self, resource_type: str) -> str:
+        """The fully catalog-qualified table identifier, for SQL DML/DDL."""
+        catalog_name = self.settings.iceberg.catalog_name
+        return f"{catalog_name}.{self._iceberg_table_ref(resource_type)}"
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=5, max=30),
+        stop=stop_after_attempt(5),
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
+    )
+    def _create_iceberg_table_if_not_exists(
+        self, resource_df: DataFrame, resource_type: str
+    ) -> str:
+        iceberg = self.settings.iceberg
+        namespace = f"{iceberg.catalog_name}.{iceberg.namespace}"
+        table_identifier = self._iceberg_table_identifier(resource_type)
+
+        self.pc.spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {namespace}")
+
+        table_settings = iceberg.tables.get(resource_type)
+
+        partition_parts = []
+
+        bucket_column = table_settings.bucket_column if table_settings else ""
+        bucket_count = table_settings.bucket_count if table_settings else 0
+        if bucket_column and bucket_count:
+            partition_parts.append(f"bucket({bucket_count}, {bucket_column})")
+        elif bucket_column or bucket_count:
+            logger.warning(
+                "Ignoring incomplete bucket partitioning config for "
+                "{resource_type}: both bucket_column and bucket_count must "
+                "be set",
+                resource_type=resource_type,
+            )
+
+        partition_columns = table_settings.partition_columns if table_settings else []
+        if partition_columns:
+            partition_parts.extend(partition_columns)
+
+        partition_clause = (
+            f"PARTITIONED BY ({', '.join(partition_parts)})" if partition_parts else ""
+        )
+
+        create_table_query = (
+            f"CREATE TABLE IF NOT EXISTS {table_identifier} "
+            f"({resource_df.schema.toDDL()}) "
+            f"USING iceberg {partition_clause} "
+            "TBLPROPERTIES ("
+            f"'format-version'='{iceberg.format_version}', "
+            f"'write.target-file-size-bytes'='{iceberg.target_file_size_bytes}', "
+            f"'write.distribution-mode'='{iceberg.write_distribution_mode}', "
+            f"'write.merge.mode'='{iceberg.write_merge_mode}', "
+            f"'write.update.mode'='{iceberg.write_update_mode}', "
+            f"'write.delete.mode'='{iceberg.write_delete_mode}'"
+            ")"
+        )
+        logger.info(create_table_query)
+        self.pc.spark.sql(create_table_query)
+
+        sort_columns = table_settings.sort_columns if table_settings else []
+        if sort_columns:
+            self.pc.spark.sql(
+                f"ALTER TABLE {table_identifier} WRITE ORDERED BY "
+                f"{', '.join(sort_columns)}"
+            )
+            # WRITE ORDERED BY switches write.distribution-mode to 'range' as
+            # a side effect, which would force a full global shuffle+sort on
+            # every micro-batch merge. Reset it back so regular batches stay
+            # cheap (locally sorted per task) and only the periodic
+            # sort-strategy compaction pays for a full re-sort.
+            self.pc.spark.sql(
+                f"ALTER TABLE {table_identifier} SET TBLPROPERTIES "
+                f"('write.distribution-mode'='{iceberg.write_distribution_mode}')"
+            )
+
+        return table_identifier
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=5, max=30),
+        stop=stop_after_attempt(5),
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
+    )
+    def _merge_into_iceberg_table(
+        self, resource_df: DataFrame, resource_type: str, table_identifier: str
+    ):
+        resources_count = resource_df.count()
+
+        logger.info(
+            "Merging into table {resource_type} with {resources_count} rows",
+            resource_type=resource_type,
+            resources_count=resources_count,
+        )
+
+        view_name = f"__fhir_to_lakehouse_merge_source_{resource_type}"
+        resource_df.createOrReplaceTempView(view_name)
+        try:
+            self.pc.spark.sql(
+                f"MERGE INTO {table_identifier} t "
+                f"USING {view_name} s "
+                "ON s.id = t.id "
+                "WHEN MATCHED THEN UPDATE SET * "
+                "WHEN NOT MATCHED THEN INSERT *"
+            )
+        finally:
+            self.pc.spark.catalog.dropTempView(view_name)
+
+        resources_processed_counter.add(
+            resources_count,
+            {
+                "operation": "written",
+                "resource_type": resource_type,
+                "table_format": "iceberg",
+            },
+        )
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        stop=stop_after_attempt(5),
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
+    )
+    def _delete_from_iceberg_table(
+        self, delete_df: DataFrame, resource_type: str, table_identifier: str
+    ):
+        deletes_count = delete_df.count()
+
+        logger.info(
+            "Deleting from table {resource_type} with {delete_df_size} rows",
+            resource_type=resource_type,
+            delete_df_size=deletes_count,
+        )
+
+        view_name = f"__fhir_to_lakehouse_delete_source_{resource_type}"
+        delete_df.createOrReplaceTempView(view_name)
+        try:
+            self.pc.spark.sql(
+                f"MERGE INTO {table_identifier} t "
+                f"USING {view_name} s "
+                "ON s.request_resource_id = t.id "
+                "WHEN MATCHED THEN DELETE"
+            )
+        finally:
+            self.pc.spark.catalog.dropTempView(view_name)
+
+        resources_processed_counter.add(
+            deletes_count,
+            {
+                "operation": "delete",
+                "resource_type": resource_type,
+                "table_format": "iceberg",
+            },
+        )
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        stop=stop_after_attempt(5),
+        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
+    )
+    def _optimize_and_vacuum_iceberg_table(self, resource_type: str):
+        logger.info("Optimizing and expiring snapshots for table")
+
+        catalog_name = self.settings.iceberg.catalog_name
+        table_ref = self._iceberg_table_ref(resource_type)
+
+        # use the table's default sort order (set via WRITE ORDERED BY in
+        # _create_iceberg_table_if_not_exists) to actually re-cluster files
+        # during this periodic maintenance pass; regular streaming writes
+        # only sort locally per task and don't fix up the whole table's
+        # file layout on their own.
+        table_settings = self.settings.iceberg.tables.get(resource_type)
+        sort_columns = table_settings.sort_columns if table_settings else []
+        strategy_clause = ", strategy => 'sort'" if sort_columns else ""
+
+        with MeasureElapsed(
+            table_operations_timer,
+            {
+                "operation": "optimize",
+                "resource_type": resource_type,
+                "table_format": "iceberg",
+            },
+        ):
+            rewrite_df = self.pc.spark.sql(
+                f"CALL {catalog_name}.system.rewrite_data_files("
+                f"table => '{table_ref}'{strategy_clause})"
+            )
+
+        logger.info(
+            "Finished optimizing table. Statistics: {stats}",
+            stats=rewrite_df.toJSON().collect(),
+        )
+
+        older_than = datetime.now(UTC) - timedelta(
+            hours=self.settings.vacuum_retention_hours
+        )
+        older_than_literal = older_than.strftime("%Y-%m-%d %H:%M:%S.%f")
+
+        with MeasureElapsed(
+            table_operations_timer,
+            {
+                "operation": "vacuum",
+                "resource_type": resource_type,
+                "table_format": "iceberg",
+            },
+        ):
+            expire_df = self.pc.spark.sql(
+                f"CALL {catalog_name}.system.expire_snapshots("
+                f"table => '{table_ref}', "
+                f"older_than => TIMESTAMP '{older_than_literal}', "
+                "retain_last => 1)"
+            )
+
+        logger.info(
+            "Finished vacuuming table. Statistics: {stats}",
+            stats=expire_df.toJSON().collect(),
+        )

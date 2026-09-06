@@ -1,5 +1,6 @@
 import os
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from urllib.parse import urlparse, urlunparse
 
@@ -32,6 +33,157 @@ class BaseCommand(click.Command):
                 required=True,
             ),
         )
+
+
+# via https://stackoverflow.com/a/53875557
+class IcebergCatalogCommand(click.Command):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.params.insert(
+            0,
+            click.core.Option(
+                ("--catalog-name",),
+                type=click.STRING,
+                default="iceberg",
+                show_default=True,
+                help="name of the Iceberg Spark catalog to connect to",
+            ),
+        )
+        self.params.insert(
+            1,
+            click.core.Option(
+                ("--catalog-type",),
+                type=click.Choice(["hadoop", "hive", "rest"]),
+                default="hadoop",
+                show_default=True,
+                help="Iceberg catalog implementation",
+            ),
+        )
+        self.params.insert(
+            2,
+            click.core.Option(
+                ("--warehouse-dir",),
+                type=click.STRING,
+                default=None,
+                help="warehouse location, e.g. s3a://fhir/warehouse-iceberg. "
+                "Required for --catalog-type hadoop/hive.",
+            ),
+        )
+        self.params.insert(
+            3,
+            click.core.Option(
+                ("--catalog-uri",),
+                type=click.STRING,
+                default=None,
+                help="REST catalog endpoint, e.g. http://lakekeeper:8181/catalog. "
+                "Required for --catalog-type rest.",
+            ),
+        )
+        self.params.insert(
+            4,
+            click.core.Option(
+                ("--catalog-warehouse",),
+                type=click.STRING,
+                default=None,
+                help="warehouse name as registered in the REST catalog (not a "
+                "path). Required for --catalog-type rest.",
+            ),
+        )
+        self.params.insert(
+            5,
+            click.core.Option(
+                ("--metastore-url",),
+                type=click.STRING,
+                default=None,
+                help="Hive metastore URI, e.g. thrift://hive-metastore:9083. "
+                "Required for --catalog-type hive.",
+            ),
+        )
+        self.params.insert(
+            6,
+            click.core.Option(
+                ("--namespace",),
+                type=click.STRING,
+                required=True,
+                help="Iceberg namespace to sweep, e.g. default",
+            ),
+        )
+
+
+def build_iceberg_spark(
+    catalog_name: str,
+    catalog_type: Literal["hadoop", "hive", "rest"],
+    warehouse_dir: str | None,
+    catalog_uri: str | None,
+    catalog_warehouse: str | None,
+    metastore_url: str | None,
+) -> SparkSession:
+    if catalog_type in ("hadoop", "hive") and not warehouse_dir:
+        raise click.UsageError(
+            f"--warehouse-dir is required for --catalog-type {catalog_type}"
+        )
+    if catalog_type == "hive" and not metastore_url:
+        raise click.UsageError("--metastore-url is required for --catalog-type hive")
+    if catalog_type == "rest" and not (catalog_uri and catalog_warehouse):
+        raise click.UsageError(
+            "--catalog-uri and --catalog-warehouse are required for --catalog-type rest"
+        )
+
+    builder = (
+        SparkSession.builder.appName("lakehousekeeper")
+        .config(
+            "spark.jars.packages",
+            ",".join(
+                [
+                    "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.11.0",
+                    "org.apache.iceberg:iceberg-aws-bundle:1.11.0",
+                    "org.apache.hadoop:hadoop-aws:3.4.1",
+                ]
+            ),
+        )
+        .config(
+            "spark.sql.extensions",
+            "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+        )
+        .config(
+            f"spark.sql.catalog.{catalog_name}",
+            "org.apache.iceberg.spark.SparkCatalog",
+        )
+        .config(f"spark.sql.catalog.{catalog_name}.type", catalog_type)
+        .config(
+            f"spark.sql.catalog.{catalog_name}.warehouse",
+            catalog_warehouse if catalog_type == "rest" else warehouse_dir,
+        )
+        .config("spark.hadoop.fs.s3a.endpoint", os.getenv("AWS_ENDPOINT_URL"))
+        .config("spark.hadoop.fs.s3a.path.style.access", "true")
+    )
+
+    if catalog_type == "hive":
+        builder = (
+            builder.config("spark.sql.catalogImplementation", "hive")
+            .config("spark.hive.metastore.uris", metastore_url)
+            .config(f"spark.sql.catalog.{catalog_name}.uri", metastore_url)
+        )
+
+    if catalog_type == "rest":
+        builder = builder.config(
+            f"spark.sql.catalog.{catalog_name}.uri", catalog_uri
+        ).config(
+            f"spark.sql.catalog.{catalog_name}.io-impl",
+            "org.apache.iceberg.aws.s3.S3FileIO",
+        )
+
+    return builder.getOrCreate()
+
+
+def list_iceberg_tables(
+    spark: SparkSession, catalog_name: str, namespace: str
+) -> Iterator[str]:
+    """Yields namespace-qualified table names (without the catalog prefix),
+    the form expected by `table =>` arguments of Iceberg's system stored
+    procedures."""
+    for row in spark.sql(f"SHOW TABLES IN {catalog_name}.{namespace}").collect():
+        yield f"{namespace}.{row['tableName']}"
 
 
 spark_builder = (
@@ -289,6 +441,99 @@ def register(bucket_name: str, database_name_prefix: str, hive_metastore: str):
         )
         logger.info(create_table_query)
         spark.sql(create_table_query)
+
+
+@cli.command(name="iceberg-optimize", cls=IcebergCatalogCommand)
+@click.option(
+    "--strategy",
+    type=click.Choice(["binpack", "sort"]),
+    default=None,
+    help="rewrite_data_files strategy. Defaults to Iceberg's own default "
+    "(binpack) when unset.",
+)
+def iceberg_optimize(
+    catalog_name: str,
+    catalog_type: Literal["hadoop", "hive", "rest"],
+    warehouse_dir: str | None,
+    catalog_uri: str | None,
+    catalog_warehouse: str | None,
+    metastore_url: str | None,
+    namespace: str,
+    strategy: Literal["binpack", "sort"] | None,
+):
+    """Run rewrite_data_files against all Iceberg tables in the given namespace"""
+    spark = build_iceberg_spark(
+        catalog_name=catalog_name,
+        catalog_type=catalog_type,
+        warehouse_dir=warehouse_dir,
+        catalog_uri=catalog_uri,
+        catalog_warehouse=catalog_warehouse,
+        metastore_url=metastore_url,
+    )
+
+    strategy_clause = f", strategy => '{strategy}'" if strategy else ""
+
+    for table_ref in list_iceberg_tables(spark, catalog_name, namespace):
+        logger.info("Rewriting data files for '{table}'", table=table_ref)
+
+        query = (
+            f"CALL {catalog_name}.system.rewrite_data_files("
+            f"table => '{table_ref}'{strategy_clause})"
+        )
+        logger.info(query)
+        spark.sql(query).show(truncate=False)
+
+
+@cli.command(name="iceberg-expire-snapshots", cls=IcebergCatalogCommand)
+@click.option(
+    "--retention-hours",
+    type=click.INT,
+    default=24,
+    show_default=True,
+    help="expire snapshots older than this many hours",
+)
+@click.option(
+    "--retain-last",
+    type=click.INT,
+    default=1,
+    show_default=True,
+    help="minimum number of snapshots to retain per table, regardless of age",
+)
+def iceberg_expire_snapshots(
+    catalog_name: str,
+    catalog_type: Literal["hadoop", "hive", "rest"],
+    warehouse_dir: str | None,
+    catalog_uri: str | None,
+    catalog_warehouse: str | None,
+    metastore_url: str | None,
+    namespace: str,
+    retention_hours: int,
+    retain_last: int,
+):
+    """Run expire_snapshots against all Iceberg tables in the given namespace"""
+    spark = build_iceberg_spark(
+        catalog_name=catalog_name,
+        catalog_type=catalog_type,
+        warehouse_dir=warehouse_dir,
+        catalog_uri=catalog_uri,
+        catalog_warehouse=catalog_warehouse,
+        metastore_url=metastore_url,
+    )
+
+    older_than = datetime.now(UTC) - timedelta(hours=retention_hours)
+    older_than_literal = older_than.strftime("%Y-%m-%d %H:%M:%S.%f")
+
+    for table_ref in list_iceberg_tables(spark, catalog_name, namespace):
+        logger.info("Expiring snapshots for '{table}'", table=table_ref)
+
+        query = (
+            f"CALL {catalog_name}.system.expire_snapshots("
+            f"table => '{table_ref}', "
+            f"older_than => TIMESTAMP '{older_than_literal}', "
+            f"retain_last => {retain_last})"
+        )
+        logger.info(query)
+        spark.sql(query).show(truncate=False)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,116 @@
+# kics-scan ignore
+#
+# Adds a Lakekeeper Iceberg REST catalog to the dev fixtures, for testing
+# `iceberg.catalog_type = "rest"` against something closer to a production
+# catalog than the default Hadoop catalog. Run together with compose.yaml,
+# since it depends on that file's kafka/minio/createbucket services:
+#
+#   docker compose -f compose.yaml -f compose.lakekeeper.yaml up
+#
+# See the "Iceberg REST catalog (Lakekeeper)" section in README.md for how
+# to point fhir-to-lakehouse and its test suite at the resulting catalog.
+services:
+  lakekeeper-db:
+    image: docker.io/library/postgres:18.4@sha256:3a82e1f56c8f0f5616a11103ac3d47e632c3938698946a7ad26da0df1334744a
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lakekeeper
+      POSTGRES_PASSWORD: lakekeeper
+      POSTGRES_DB: lakekeeper
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lakekeeper -d lakekeeper"]
+      interval: 2s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+
+  lakekeeper-migrate:
+    image: quay.io/lakekeeper/catalog:v0.13.3@sha256:db2ba6168eb107f22242fb7f2edc4016fa35e57bdcc606894e809c418e32e8dc
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: "no"
+    environment:
+      LAKEKEEPER__PG_ENCRYPTION_KEY: "lakekeeper-dev-encryption-key"
+      LAKEKEEPER__PG_DATABASE_URL_READ: "postgresql://lakekeeper:lakekeeper@lakekeeper-db:5432/lakekeeper"
+      LAKEKEEPER__PG_DATABASE_URL_WRITE: "postgresql://lakekeeper:lakekeeper@lakekeeper-db:5432/lakekeeper"
+    command: ["migrate"]
+    depends_on:
+      lakekeeper-db:
+        condition: service_healthy
+
+  lakekeeper:
+    image: quay.io/lakekeeper/catalog:v0.13.3@sha256:db2ba6168eb107f22242fb7f2edc4016fa35e57bdcc606894e809c418e32e8dc
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: unless-stopped
+    environment:
+      LAKEKEEPER__PG_ENCRYPTION_KEY: "lakekeeper-dev-encryption-key"
+      LAKEKEEPER__PG_DATABASE_URL_READ: "postgresql://lakekeeper:lakekeeper@lakekeeper-db:5432/lakekeeper"
+      LAKEKEEPER__PG_DATABASE_URL_WRITE: "postgresql://lakekeeper:lakekeeper@lakekeeper-db:5432/lakekeeper"
+    command: ["serve"]
+    healthcheck:
+      test: ["CMD", "/home/nonroot/lakekeeper", "healthcheck"]
+      interval: 1s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "127.0.0.1:8181:8181"
+    depends_on:
+      lakekeeper-migrate:
+        condition: service_completed_successfully
+      lakekeeper-db:
+        condition: service_healthy
+
+  # No auth is configured (no LAKEKEEPER__OPENID_PROVIDER_URI etc.), matching
+  # this project's other dev fixtures (Kafka, MinIO) which also run without
+  # auth. Do not reuse this compose file as-is for anything but local dev.
+  lakekeeper-bootstrap:
+    image: docker.io/curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        curl -sf -X POST http://lakekeeper:8181/management/v1/bootstrap \
+          -H "Content-Type: application/json" \
+          -d '{"accept-terms-of-use": true}'
+    depends_on:
+      lakekeeper:
+        condition: service_healthy
+
+  lakekeeper-create-warehouse:
+    image: docker.io/curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
+    ipc: none
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    privileged: false
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        curl -sf -X POST http://lakekeeper:8181/management/v1/warehouse \
+          -H "Content-Type: application/json" \
+          -d @/create-fhir-warehouse.json
+    volumes:
+      - ./hack/lakekeeper/create-fhir-warehouse.json:/create-fhir-warehouse.json:ro
+    depends_on:
+      lakekeeper-bootstrap:
+        condition: service_completed_successfully
+      createbucket:
+        condition: service_completed_successfully
