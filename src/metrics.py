@@ -93,23 +93,22 @@ class KafkaOffsetTrackingStreamingQueryListener(StreamingQueryListener):
             source=json.loads(event.progress.prettyJson),
         )
 
+        # unnamed streaming queries have no name
+        query_name = event.progress.name or ""
+
         self.query_processed_rows_per_second.set(
-            event.progress.processedRowsPerSecond, {"query_name": event.progress.name}
+            event.progress.processedRowsPerSecond, {"query_name": query_name}
         )
 
         for source in event.progress.sources:
             if source.description.startswith("Kafka"):
                 if source.startOffset != "None":
-                    self._update_kafka_offsets(
-                        "start", event.progress.name, source.startOffset
-                    )
+                    self._update_kafka_offsets("start", query_name, source.startOffset)
                 if source.endOffset != "None":
-                    self._update_kafka_offsets(
-                        "end", event.progress.name, source.endOffset
-                    )
+                    self._update_kafka_offsets("end", query_name, source.endOffset)
                 if source.latestOffset != "None":
                     self._update_kafka_offsets(
-                        "latest", event.progress.name, source.latestOffset
+                        "latest", query_name, source.latestOffset
                     )
 
     def _update_kafka_offsets(self, type: str, query_name: str, str_offsets: str):

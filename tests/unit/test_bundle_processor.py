@@ -147,7 +147,9 @@ def test_delete_afer_insert_should_delete_row(pathling_fixture, tmp_path):
     dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
 
     assert dt.toDF().count() == 1
-    assert dt.toDF().first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+    first_row = dt.toDF().first()
+    assert first_row is not None
+    assert first_row.id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
 
     delete_bundle = (HERE / "fixtures/resources/delete-single-patient.json").read_text()
 
@@ -199,7 +201,9 @@ def test_store_tables_in_minio(pathling_fixture):
     dt = DeltaTable.forPath(pathling_fixture.spark, "s3a://test/data/Patient.parquet")
 
     assert dt.toDF().count() == 1
-    assert dt.toDF().first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+    first_row = dt.toDF().first()
+    assert first_row is not None
+    assert first_row.id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
 
 
 def test_vaccuum_and_optimize(pathling_fixture, tmp_path):
@@ -233,7 +237,9 @@ def test_vaccuum_and_optimize(pathling_fixture, tmp_path):
     dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
 
     assert dt.toDF().count() == 1
-    assert dt.toDF().first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+    first_row = dt.toDF().first()
+    assert first_row is not None
+    assert first_row.id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
 
 
 def test_liquid_clustering(pathling_fixture, tmp_path):
@@ -274,7 +280,9 @@ def test_liquid_clustering(pathling_fixture, tmp_path):
     dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
 
     assert dt.toDF().count() == 1
-    assert dt.toDF().first().id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
+    first_row = dt.toDF().first()
+    assert first_row is not None
+    assert first_row.id == "cd30dceb-20c8-1e15-ad0c-c9fe2a48ea4e"
 
 
 def test_batch_with_put_and_delete_should_only_retain_latest(
