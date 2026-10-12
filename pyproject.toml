@@ -27,6 +27,7 @@ dev = [
     "pytest-cov==7.1.0",
     "testcontainers[minio]==4.14.2",
     "ruff==0.15.22",
+    "pyrefly==1.3.2",
 ]
 
 [tool.ruff.lint]
@@ -44,3 +45,7 @@ select = [
     # isort
     "I",
 ]
+
+[tool.pyrefly]
+preset = "default"
+project-includes = ["src", "tests"]
