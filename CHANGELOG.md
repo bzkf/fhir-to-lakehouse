@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.14.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.16...v1.14.0) (2026-10-19)
+
+
+### Features
+
+* reduce image size by removing unneeded deps ([#213](https://github.com/bzkf/fhir-to-lakehouse/issues/213)) ([84741f7](https://github.com/bzkf/fhir-to-lakehouse/commit/84741f79f44b0e5a3ebb1440b11d6de20dba977e))
+
+
+### Miscellaneous Chores
+
+* added pyrefly ([#211](https://github.com/bzkf/fhir-to-lakehouse/issues/211)) ([b45ee53](https://github.com/bzkf/fhir-to-lakehouse/commit/b45ee53079602ce903bd7398dbf5f4dcb8403b33))
+
+
+### Build
+
+* **deps:** bump urllib3 from 2.7.0 to 2.8.0 ([#210](https://github.com/bzkf/fhir-to-lakehouse/issues/210)) ([41aa402](https://github.com/bzkf/fhir-to-lakehouse/commit/41aa402e0218cb47360ae82f8b89bfcb1e5152ee))
+
 ## [1.13.16](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.15...v1.13.16) (2026-08-04)
 
 
