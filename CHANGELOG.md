@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.1](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.14.0...v1.14.1) (2026-10-19)
+
+
+### Miscellaneous Chores
+
+* **deps:** upgraded hive metastore client ([#214](https://github.com/bzkf/fhir-to-lakehouse/issues/214)) ([69640f3](https://github.com/bzkf/fhir-to-lakehouse/commit/69640f30e9d7ab771f7e60eed2da114231ab3572))
+
 ## [1.14.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.13.16...v1.14.0) (2026-10-19)
 
 
