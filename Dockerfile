@@ -32,6 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 RUN --mount=type=bind,source=src/spark_jars.py,target=/app/src/spark_jars.py <<EOF
 set -e
 /app/.venv/bin/python src/spark_jars.py /opt/ivy
+/app/.venv/bin/python src/spark_jars.py --hive-metastore /opt/hive-metastore-ivy
 rm -rf /tmp/spark*
 EOF
 
@@ -39,9 +40,11 @@ FROM base
 ENV METRICS_ADDR=0.0.0.0 \
     SPARK_CONF_DIR=/app/spark/conf \
     SPARK_JARS_DIR=/app/jars \
+    SPARK_HIVE_METASTORE_JARS_DIR=/app/hive-metastore-jars \
     PATH="/app/.venv/bin:$PATH"
 
 COPY --from=build /opt/ivy/jars /app/jars
+COPY --from=build /opt/hive-metastore-ivy/jars /app/hive-metastore-jars
 COPY --from=build /app/.venv /app/.venv
 COPY src /app/src
 
