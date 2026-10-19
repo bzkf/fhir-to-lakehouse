@@ -10,7 +10,7 @@ The application uses the [Typed Settings](https://typed-settings.readthedocs.io/
 configure everything in the [settings.py](./src/settings.py) using [environment variables](https://typed-settings.readthedocs.io/en/latest/guides/environment-variables.html).
 
 For the nested configuration it is easier to use a [config file](https://typed-settings.readthedocs.io/en/latest/guides/config-files.html):
-For example, create the followint settings.toml file:
+For example, create the following settings.toml file:
 
 ```toml
 [fhir-to-lakehouse.delta]
@@ -37,12 +37,26 @@ can mount a `spark-defaults.conf` file at `/app/spark/conf/spark-defaults.conf` 
 
 A CLI tool called `lakehousekeeper` is also part of the container distribution.
 It implements commands for vacuuming, optimizing, and registering tables from S3-compatible object storage.
-You can invoke it by running:
+You can invoke it by overriding the container's entrypoint:
 
 <!-- x-release-please-start-version -->
 
 ```sh
-docker run --rm -it ghcr.io/bzkf/fhir-to-lakehouse:v1.13.16 /opt/fhir-to-lakehouse/src/lakehousekeeper.py -- --help
+docker run --rm -it --entrypoint python3 ghcr.io/bzkf/fhir-to-lakehouse:v1.13.16 src/lakehousekeeper.py --help
+```
+
+For example, to list the files a VACUUM of all tables in `s3://fhir/warehouse/` would delete:
+
+```sh
+docker run --rm -it \
+  -e AWS_ENDPOINT_URL=http://minio:9000 \
+  -e AWS_ACCESS_KEY_ID=admin \
+  -e AWS_SECRET_ACCESS_KEY=miniopass \
+  -e AWS_REGION=us-east-1 \
+  -e AWS_ALLOW_HTTP=true \
+  --entrypoint python3 \
+  ghcr.io/bzkf/fhir-to-lakehouse:v1.13.16 \
+  src/lakehousekeeper.py vacuum --bucket-name=fhir --database-name-prefix=warehouse/ --dry-run=true
 ```
 
 <!-- x-release-please-end-version -->
@@ -54,6 +68,9 @@ Install `uv` <https://docs.astral.sh/uv/getting-started/installation/#installati
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
+
+Running Spark locally requires Java 21 (see [.java-version](.java-version)). Newer versions are not yet supported
+by Spark 4.0.
 
 Install dependencies using
 

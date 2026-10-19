@@ -39,7 +39,6 @@ class BaseCommand(click.Command):
 spark_builder = (
     with_jars(SparkSession.builder)
     .appName("lakehousekeeper")
-    .config("spark.sql.catalogImplementation", "hive")
     .config(
         "spark.sql.catalog.spark_catalog",
         "org.apache.spark.sql.delta.catalog.DeltaCatalog",
@@ -52,6 +51,16 @@ spark_builder = (
 
 def list_tables(bucket_name: str, prefix: str) -> Iterator[DeltaTable]:
     delimiter = "/"
+
+    # without the trailing delimiter, the prefix itself is listed instead of
+    # the tables inside it
+    if prefix and not prefix.endswith(delimiter):
+        logger.info(
+            "Appending '{delimiter}' to prefix '{prefix}'",
+            delimiter=delimiter,
+            prefix=prefix,
+        )
+        prefix = prefix + delimiter
 
     logger.info(
         "Listing objects in {bucket} with prefix {prefix} delimiter {delimiter}",
@@ -246,9 +255,11 @@ def register(bucket_name: str, database_name_prefix: str, hive_metastore: str):
     Register all Delta tables in the given folder in a Hive metastore
     using the folder as the schema name.
     """
-    spark = spark_builder.config(
-        "spark.hive.metastore.uris", hive_metastore
-    ).getOrCreate()
+    spark = (
+        spark_builder.config("spark.sql.catalogImplementation", "hive")
+        .config("spark.hive.metastore.uris", hive_metastore)
+        .getOrCreate()
+    )
 
     for dt in list_tables(bucket_name=bucket_name, prefix=database_name_prefix):
         logger.info(
