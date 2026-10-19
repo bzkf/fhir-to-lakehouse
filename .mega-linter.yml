@@ -20,6 +20,10 @@ DISABLE_LINTERS:
   - YAML_V8R
   - SQL_TSQLLINT
   - REPOSITORY_KINGFISHER
+  - PYTHON_BLACK # this and below all covered by ruff or pyrefly
+  - PYTHON_ISORT
+  - PYTHON_FLAKE8
+  - PYTHON_MYPY
 
 GROOVY_NPM_GROOVY_LINT_ARGUMENTS:
   - "--failon=warning"

@@ -64,14 +64,13 @@ services:
         condition: service_completed_successfully
 
   minio:
-    image: docker.io/minio/minio:RELEASE.2025-07-23T15-54-02Z@sha256:d249d1fb6966de4d8ad26c04754b545205ff15a62e4fd19ebd0f26fa5baacbc0
+    image: docker.io/bitnamilegacy/minio:2025.7.23-debian-12-r3@sha256:953d489a81cc4de7975f90e07202189c4325da39b0b92470b6a13c7ea99e36cd
     cap_drop:
       - ALL
     privileged: false
     ipc: none
     security_opt:
       - "no-new-privileges:true"
-    command: server /data --console-address ":9001"
     environment:
       MINIO_UPDATE: "off"
       MINIO_CALLHOME_ENABLE: "off"
@@ -107,7 +106,7 @@ services:
         condition: service_started
 
   createbucket:
-    image: docker.io/minio/minio:RELEASE.2025-07-23T15-54-02Z@sha256:d249d1fb6966de4d8ad26c04754b545205ff15a62e4fd19ebd0f26fa5baacbc0
+    image: docker.io/bitnamilegacy/minio:2025.7.23-debian-12-r3@sha256:953d489a81cc4de7975f90e07202189c4325da39b0b92470b6a13c7ea99e36cd
     restart: on-failure
     cap_drop:
       - ALL
@@ -118,8 +117,8 @@ services:
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
-        /usr/bin/mc alias set minio http://minio:9000 admin miniopass;
-        /usr/bin/mc mb --ignore-existing minio/fhir;
+        mc alias set minio http://minio:9000 admin miniopass;
+        mc mb --ignore-existing minio/fhir;
     depends_on:
       wait-for-minio:
         condition: service_completed_successfully

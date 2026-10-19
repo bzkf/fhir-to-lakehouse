@@ -13,6 +13,7 @@ from pyspark.sql import functions as F
 from bundle_processor import BundleProcessor
 from metrics import KafkaOffsetTrackingStreamingQueryListener
 from settings import settings
+from spark_jars import with_jars
 
 
 def formatter(record) -> str:
@@ -40,19 +41,8 @@ set_meter_provider(MeterProvider(metric_readers=[reader]))
 # other config can be set via $SPARK_HOME/conf/spark-defaults.conf,
 # e.g. compression type.
 spark_config = (
-    SparkSession.builder.master(settings.spark.master)  # type: ignore
+    with_jars(SparkSession.builder.master(settings.spark.master))  # type: ignore
     .appName("fhir_to_lakehouse")
-    .config(
-        "spark.jars.packages",
-        ",".join(
-            [
-                "au.csiro.pathling:library-runtime:9.8.0",
-                "io.delta:delta-spark_2.13:4.0.0",
-                "org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2",
-                "org.apache.hadoop:hadoop-aws:3.4.1",
-            ]
-        ),
-    )
     .config(
         "spark.sql.extensions",
         "io.delta.sql.DeltaSparkSessionExtension",
@@ -99,10 +89,6 @@ if settings.metastore_url:
     )
 
 spark = spark_config.getOrCreate()
-
-if settings.spark.install_packages_and_exit:
-    logger.info("Exiting after installing packages")
-    sys.exit()
 
 pc = PathlingContext.create(
     spark,
