@@ -9,6 +9,8 @@ from deltalake import DeltaTable, WriterProperties
 from loguru import logger
 from pyspark.sql import SparkSession
 
+from spark_jars import with_jars
+
 
 # via https://stackoverflow.com/a/53875557
 class BaseCommand(click.Command):
@@ -35,20 +37,12 @@ class BaseCommand(click.Command):
 
 
 spark_builder = (
-    SparkSession.builder.appName("lakehousekeeper")
+    with_jars(SparkSession.builder)
+    .appName("lakehousekeeper")
     .config("spark.sql.catalogImplementation", "hive")
     .config(
         "spark.sql.catalog.spark_catalog",
         "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-    )
-    .config(
-        "spark.jars.packages",
-        ",".join(
-            [
-                "io.delta:delta-spark_2.13:4.0.0",
-                "org.apache.hadoop:hadoop-aws:3.4.1",
-            ]
-        ),
     )
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
     .config("spark.hadoop.fs.s3a.endpoint", os.getenv("AWS_ENDPOINT_URL"))

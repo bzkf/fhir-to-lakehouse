@@ -29,7 +29,6 @@ class KafkaSettings:
 
 @ts.settings
 class SparkSettings:
-    install_packages_and_exit: bool = False
     master: str = "local[*]"
     s3_endpoint: str = "localhost:9000"
     s3_connection_ssl_enabled: str = "false"
