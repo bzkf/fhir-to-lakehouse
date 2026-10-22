@@ -281,11 +281,11 @@ def run(args):
 
     sc = spark.sparkContext
     api = f"{sc.uiWebUrl}/api/v1/applications/{sc.applicationId}"
-    with urllib.request.urlopen(f"{api}/jobs") as response:  # nosec B310
+    with urllib.request.urlopen(f"{api}/jobs") as response:
         jobs = json.load(response)
-    with urllib.request.urlopen(f"{api}/stages") as response:  # nosec B310
+    with urllib.request.urlopen(f"{api}/stages") as response:
         stages = json.load(response)
-    with urllib.request.urlopen(f"{api}/executors") as response:  # nosec B310
+    with urllib.request.urlopen(f"{api}/executors") as response:
         # in local mode, the driver is the only executor
         peak_memory_metrics = json.load(response)[0]["peakMemoryMetrics"]
 
@@ -331,7 +331,7 @@ def compare(args):
     with tempfile.TemporaryDirectory(prefix="fhir-to-lakehouse-baseline-") as tmp:
         baseline_dir = Path(tmp) / "worktree"
         worktree_add = ["git", "worktree", "add", "--detach"]
-        subprocess.run(  # nosec B603 B607
+        subprocess.run(
             [*worktree_add, str(baseline_dir), args.baseline_ref],
             cwd=REPO_ROOT,
             check=True,
@@ -351,7 +351,7 @@ def compare(args):
                     order.reverse()
                 for label, src in order:
                     print(f"run {i + 1}/{args.runs}: {label}", file=sys.stderr)
-                    output = subprocess.run(  # nosec B603
+                    output = subprocess.run(
                         [
                             sys.executable,
                             __file__,
@@ -379,7 +379,7 @@ def compare(args):
                     print(json.dumps(result), file=sys.stderr)
                     results[label].append(result)
         finally:
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(
                 ["git", "worktree", "remove", "--force", str(baseline_dir)],
                 cwd=REPO_ROOT,
                 check=True,
