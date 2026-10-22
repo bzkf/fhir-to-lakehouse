@@ -11,7 +11,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 from bundle_processor import BundleProcessor
-from metrics import KafkaOffsetTrackingStreamingQueryListener
+from metrics import KafkaOffsetTrackingStreamingQueryListener, SparkRuntimeMetrics
 from settings import settings
 from spark_jars import with_jars
 
@@ -89,6 +89,8 @@ if settings.metastore_url:
     )
 
 spark = spark_config.getOrCreate()
+
+spark_runtime_metrics = SparkRuntimeMetrics(spark)
 
 pc = PathlingContext.create(
     spark,

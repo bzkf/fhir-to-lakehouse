@@ -16,19 +16,27 @@ from tenacity import (
     wait_exponential,
 )
 
-from metrics import MeasureElapsed, meter
+from metrics import DURATION_SECONDS_BUCKETS, MeasureElapsed, meter
 from settings import Settings
 
 delta_operations_timer = meter.create_histogram(
     name="delta-operation-duration",
     unit="seconds",
     description="Duration of Delta Table operations",
+    explicit_bucket_boundaries_advisory=DURATION_SECONDS_BUCKETS,
 )
 
 resources_processed_counter = meter.create_counter(
     name="resources-processed-total",
     unit="{Count}",
     description="Total number of resources written or deleted from Delta Tables",
+)
+
+delta_merge_rows_counter = meter.create_counter(
+    name="delta-merge-rows",
+    unit="{Count}",
+    description="Rows inserted, updated, or deleted in Delta Tables by MERGE, "
+    + "as reported by Delta",
 )
 
 # added to the MERGE source to tell upserts and deletes apart. Not part of the
@@ -325,10 +333,16 @@ class BundleProcessor:
             .execute()
         )
 
-        logger.info(
-            "Merge metrics: {merge_metrics}",
-            merge_metrics=[row.asDict() for row in merge_metrics_df.collect()],
-        )
+        merge_metrics = [row.asDict() for row in merge_metrics_df.collect()]
+
+        logger.info("Merge metrics: {merge_metrics}", merge_metrics=merge_metrics)
+
+        for row in merge_metrics:
+            for action in ("inserted", "updated", "deleted"):
+                delta_merge_rows_counter.add(
+                    row[f"num_{action}_rows"],
+                    {"action": action, "resource_type": resource_type},
+                )
 
         resources_processed_counter.add(
             put_count, {"operation": "written", "resource_type": resource_type}
