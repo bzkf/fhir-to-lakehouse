@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.2](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.14.1...v1.14.2) (2026-10-22)
+
+
+### Performance Improvements
+
+* reduce redundant dataframe copies and operations, delete and upsert in one transaction ([#216](https://github.com/bzkf/fhir-to-lakehouse/issues/216)) ([298f265](https://github.com/bzkf/fhir-to-lakehouse/commit/298f26504a7fdc5e90fc8762f62106cc4371c644))
+
 ## [1.14.1](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.14.0...v1.14.1) (2026-10-19)
 
 
