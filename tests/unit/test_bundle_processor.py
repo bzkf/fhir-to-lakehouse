@@ -365,7 +365,7 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
 
     assert dt.toDF().count() == 2
     # <https://stackoverflow.com/a/38611657>
-    assert [str(row["id"]) for row in dt.toDF().collect()] == ["0", "2"]
+    assert sorted(str(row["id"]) for row in dt.toDF().collect()) == ["0", "2"]
 
     assert dt.toDF().where("id = 2 and active = false").count() == 1, (
         "Expected patient 2 to have active=false after the latest PUT request"

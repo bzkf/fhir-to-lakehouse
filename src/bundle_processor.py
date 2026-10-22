@@ -5,6 +5,7 @@ import os
 from delta import DeltaTable
 from loguru import logger
 from pathling import PathlingContext
+from pyspark import StorageLevel
 from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
@@ -29,6 +30,11 @@ resources_processed_counter = meter.create_counter(
     unit="{Count}",
     description="Total number of resources written or deleted from Delta Tables",
 )
+
+# added to the MERGE source to tell upserts and deletes apart. Not part of the
+# target table schema, so it is ignored by `whenMatchedUpdateAll` and
+# `whenNotMatchedInsertAll`.
+MERGE_OPERATION_COLUMN = "__fhir_to_lakehouse_request_method"
 
 
 class BundleProcessor:
@@ -72,6 +78,18 @@ class BundleProcessor:
             .withColumn("request_url_split", F.split("request_url", "/"))
             .withColumn("resource_type", F.col("request_url_split").getItem(0))
             .withColumn("request_resource_id", F.col("request_url_split").getItem(1))
+            # each exploded row would otherwise carry up to three copies of the
+            # entire bundle (value, bundle, parsed_bundle). Catalyst usually prunes
+            # them, but not once the DataFrame is persisted in `process_batch`.
+            .drop(
+                "key",
+                "value",
+                "headers",
+                "bundle",
+                "parsed_bundle",
+                "entry",
+                "request_url_split",
+            )
         )
 
         return df_result
@@ -79,11 +97,7 @@ class BundleProcessor:
     def process_batch(
         self, micro_batch_df: DataFrame, batch_id: int, query_name: str = "default"
     ):
-        batch_size = micro_batch_df.count()
-        with logger.contextualize(
-            batch_id=batch_id, query_name=query_name, batch_size=batch_size
-        ):
-            # might not be super efficient to log the batch size
+        with logger.contextualize(batch_id=batch_id, query_name=query_name):
             logger.info(
                 "Processing batch {batch_id}",
                 batch_id=batch_id,
@@ -93,38 +107,65 @@ class BundleProcessor:
                 logger.info("Batch is empty, skipping")
                 return
 
-            resource_types_in_batch = [
-                row["resource_type"]
-                for row in micro_batch_df.select("resource_type").distinct().collect()
-            ]
+            # see also <https://stackoverflow.com/a/54738843>
+            # Window to get the latest message per request_url
+            # whether the partition is sorted asc or desc isn't really relevant.
+            # The request_url contains the resource type, so this is the same as
+            # deduplicating per resource type.
+            window = Window.partitionBy("request_url").orderBy(
+                F.col("partition").asc(), F.col("offset").desc()
+            )
 
+            # only returns the latest (first) row entry per request_url
+            # so if there's both a DELETE and a PUT in the batch and the DELETE
+            # is ordered after the PUT, then only the DELETE is returned.
+            # Persisted so the micro-batch is only read from Kafka and parsed once,
+            # instead of once for every action below.
+            # Without the coalesce, the cached DataFrame keeps the window's
+            # `spark.sql.shuffle.partitions` (200 by default) partitions, which
+            # results in thousands of tiny tasks for every batch.
+            latest_df = (
+                micro_batch_df.withColumn("row_num", F.row_number().over(window))
+                .filter(F.col("row_num") == 1)
+                .drop("row_num")
+                .coalesce(self.pc.spark.sparkContext.defaultParallelism)
+                .persist(StorageLevel.MEMORY_AND_DISK)
+            )
+
+            try:
+                self._process_latest_entries(latest_df, batch_id)
+            finally:
+                latest_df.unpersist()
+
+    def _process_latest_entries(self, latest_df: DataFrame, batch_id: int):
+        # a single job for all counts instead of separate count(), distinct()
+        # and per-method counts
+        counts_by_resource_type: dict[str, dict[str, int]] = {}
+        for row in (
+            latest_df.groupBy("resource_type", "request_method").count().collect()
+        ):
+            counts_by_resource_type.setdefault(row["resource_type"], {})[
+                row["request_method"]
+            ] = row["count"]
+
+        batch_size = sum(
+            count
+            for counts in counts_by_resource_type.values()
+            for count in counts.values()
+        )
+
+        with logger.contextualize(batch_size=batch_size):
             logger.info(
                 "Resource types in batch: {resource_types_in_batch}",
-                resource_types_in_batch=resource_types_in_batch,
+                resource_types_in_batch=counts_by_resource_type,
             )
 
             # for all types set in `resource_types_to_process_in_parallel`, there
             # should only ever be one resource_type in the batch.
             # In the default case, the batch may contain multiple resource types.
-            for resource_type in resource_types_in_batch:
-                resource_df = micro_batch_df.filter(
-                    f"resource_type = '{resource_type}'"
-                )
-
-                # see also <https://stackoverflow.com/a/54738843>
-                # Window to get the latest message per request_url
-                # whether the partition is sorted asc or desc isn't really relevant
-                window = Window.partitionBy("request_url").orderBy(
-                    F.col("partition").asc(), F.col("offset").desc()
-                )
-
-                # only returns the latest (first) row entry per request_url
-                # so if there's both a DELETE and a PUT in the batch and the DELETE
-                # is ordered after the PUT, then only the DELETE is returned
-                only_latest_df = (
-                    resource_df.withColumn("row_num", F.row_number().over(window))
-                    .filter(F.col("row_num") == 1)
-                    .drop("row_num")
+            for resource_type, counts in counts_by_resource_type.items():
+                only_latest_df = latest_df.filter(
+                    F.col("resource_type") == resource_type
                 )
 
                 if self.settings.log_resource_count_by_source_topic:
@@ -148,16 +189,25 @@ class BundleProcessor:
 
                 with logger.contextualize(resource_type=resource_type):
                     self._process_df_of_single_resource_type(
-                        only_latest_df, resource_type, batch_id
+                        only_latest_df,
+                        resource_type,
+                        batch_id,
+                        put_count=counts.get("PUT", 0),
+                        delete_count=counts.get("DELETE", 0),
                     )
                     logger.info("Finished processing resource batch")
 
             logger.info("Finished processing entire batch")
 
     def _process_df_of_single_resource_type(
-        self, single_resource_type_df: DataFrame, resource_type: str, batch_id: int
+        self,
+        single_resource_type_df: DataFrame,
+        resource_type: str,
+        batch_id: int,
+        put_count: int,
+        delete_count: int,
     ):
-        put_df = single_resource_type_df.filter("request_method = 'PUT'")
+        put_df = single_resource_type_df.filter(F.col("request_method") == "PUT")
 
         resource_df = self.pc.encode(
             put_df,
@@ -218,20 +268,28 @@ class BundleProcessor:
                     delta_table, resource_delta_table_path
                 )
 
+        # upserts and deletes are applied in a single MERGE, so a batch results in
+        # one commit per table instead of two
+        merge_source_df = resource_df.withColumn(MERGE_OPERATION_COLUMN, F.lit("PUT"))
+
+        if delete_count > 0:
+            delete_df = single_resource_type_df.filter(
+                F.col("request_method") == "DELETE"
+            ).select(
+                F.col("request_resource_id").alias("id"),
+                F.lit("DELETE").alias(MERGE_OPERATION_COLUMN),
+            )
+            merge_source_df = merge_source_df.unionByName(
+                delete_df, allowMissingColumns=True
+            )
+
         with MeasureElapsed(
             delta_operations_timer,
             {"operation": "merge", "resource_type": resource_type},
         ):
-            self._merge_into_table(resource_df, resource_type, delta_table)
-
-        delete_df = single_resource_type_df.filter("request_method = 'DELETE'")
-
-        if delete_df.count() > 0:
-            with MeasureElapsed(
-                delta_operations_timer,
-                {"operation": "delete", "resource_type": resource_type},
-            ):
-                self._delete_from_table(delete_df, resource_type, delta_table)
+            self._merge_into_table(
+                merge_source_df, resource_type, delta_table, put_count, delete_count
+            )
 
         # TODO: should vacuum all tables, not just the ones in the batch
         if batch_id % self.settings.spark.upkeep_interval == 0:
@@ -243,56 +301,40 @@ class BundleProcessor:
         before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
     )
     def _merge_into_table(
-        self, resource_df: DataFrame, resource_type: str, delta_table: DeltaTable
-    ):
-        resources_count = resource_df.count()
-
-        logger.info(
-            "Merging into table {resource_type} with {resources_count} rows",
-            resource_type=resource_type,
-            resources_count=resources_count,
-        )
-
-        (
-            delta_table.alias("t")
-            .merge(resource_df.alias("s"), "s.id = t.id")
-            .whenMatchedUpdateAll()
-            .whenNotMatchedInsertAll()
-            .execute()
-        )
-
-        resources_processed_counter.add(
-            resources_count, {"operation": "written", "resource_type": resource_type}
-        )
-
-    @retry(
-        wait=wait_exponential(multiplier=1, min=4, max=10),
-        stop=stop_after_attempt(5),
-        before_sleep=before_sleep_log(logger, logging.WARN),  # type: ignore
-    )
-    def _delete_from_table(
         self,
-        delete_df: DataFrame,
+        merge_source_df: DataFrame,
         resource_type: str,
         delta_table: DeltaTable,
+        put_count: int,
+        delete_count: int,
     ):
-        deletes_count = delete_df.count()
-
         logger.info(
-            "Deleting from table {resource_type} with {delete_df_size} rows",
+            "Merging into table {resource_type} with {put_count} upserts "
+            + "and {delete_count} deletes",
             resource_type=resource_type,
-            delete_df_size=deletes_count,
+            put_count=put_count,
+            delete_count=delete_count,
         )
 
-        (
+        merge_metrics_df = (
             delta_table.alias("t")
-            .merge(delete_df.alias("s"), "s.request_resource_id = t.id")
-            .whenMatchedDelete()
+            .merge(merge_source_df.alias("s"), "s.id = t.id")
+            .whenMatchedDelete(f"s.{MERGE_OPERATION_COLUMN} = 'DELETE'")
+            .whenMatchedUpdateAll(f"s.{MERGE_OPERATION_COLUMN} = 'PUT'")
+            .whenNotMatchedInsertAll(f"s.{MERGE_OPERATION_COLUMN} = 'PUT'")
             .execute()
         )
 
+        logger.info(
+            "Merge metrics: {merge_metrics}",
+            merge_metrics=[row.asDict() for row in merge_metrics_df.collect()],
+        )
+
         resources_processed_counter.add(
-            deletes_count, {"operation": "delete", "resource_type": resource_type}
+            put_count, {"operation": "written", "resource_type": resource_type}
+        )
+        resources_processed_counter.add(
+            delete_count, {"operation": "delete", "resource_type": resource_type}
         )
 
     @retry(
