@@ -121,10 +121,14 @@ class BundleProcessor:
             # is ordered after the PUT, then only the DELETE is returned.
             # Persisted so the micro-batch is only read from Kafka and parsed once,
             # instead of once for every action below.
+            # Without the coalesce, the cached DataFrame keeps the window's
+            # `spark.sql.shuffle.partitions` (200 by default) partitions, which
+            # results in thousands of tiny tasks for every batch.
             latest_df = (
                 micro_batch_df.withColumn("row_num", F.row_number().over(window))
                 .filter(F.col("row_num") == 1)
                 .drop("row_num")
+                .coalesce(self.pc.spark.sparkContext.defaultParallelism)
                 .persist(StorageLevel.MEMORY_AND_DISK)
             )
 
