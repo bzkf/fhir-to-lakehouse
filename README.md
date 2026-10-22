@@ -33,6 +33,30 @@ FHIR_TO_LAKEHOUSE_SETTINGS=settings.toml python src/main.py
 By default, the `SPARK_CONF_DIR` environment variable inside the container is set to `/app/spark/conf`, so you
 can mount a `spark-defaults.conf` file at `/app/spark/conf/spark-defaults.conf` to override any Spark setting.
 
+## Monitoring
+
+Prometheus metrics are exposed on port `8000` at `/metrics` (configurable via `METRICS_PORT` and `METRICS_ADDR`).
+Besides the application metrics, the endpoint also includes the driver's JVM memory and GC metrics and Spark's task,
+storage memory, and shuffle metrics, so Spark's own UI port doesn't need to be scraped.
+
+| Metric                                                                                   | Description                                                             |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `resources_processed_total`                                                              | resources written or deleted, by resource type                          |
+| `delta_merge_rows_total`                                                                 | rows inserted, updated, or deleted by Delta MERGE, as reported by Delta |
+| `delta_operation_duration_seconds`                                                       | duration of Delta operations (merge, optimize, vacuum, register)        |
+| `spark_streaming_query_input_rows_total`                                                 | Kafka records read by streaming query                                   |
+| `spark_streaming_query_batch_duration_seconds`                                           | duration of non-empty micro-batches by streaming query                  |
+| `spark_streaming_query_trigger_phase_duration_seconds`                                   | duration of each phase of the latest trigger, e.g. `addBatch`           |
+| `spark_streaming_query_kafka_offset`                                                     | start, end, and latest Kafka offsets, used to calculate the lag         |
+| `jvm_memory_{used,committed,limit,used_after_last_gc}_bytes`                             | JVM memory by memory pool                                               |
+| `jvm_gc_collection_time_seconds_total`, `jvm_gc_collections_total`                       | GC time and count by collector                                          |
+| `jvm_process_resident_memory_bytes`                                                      | resident memory of the JVM process, including off-heap memory           |
+| `spark_executor_tasks_total`, `spark_executor_active_tasks`                              | finished and running Spark tasks                                        |
+| `spark_executor_storage_memory_{used,limit}_bytes`, `spark_executor_shuffle_bytes_total` | cached data and shuffle data                                            |
+
+The [grafana/fhir-to-lakehouse.json](grafana/fhir-to-lakehouse.json) dashboard visualizes these metrics. Import it
+into Grafana and select your Prometheus data source. The panel descriptions explain what to look out for.
+
 ## Lakehousekeeper
 
 A CLI tool called `lakehousekeeper` is also part of the container distribution.
