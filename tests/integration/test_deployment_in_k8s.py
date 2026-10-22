@@ -46,9 +46,13 @@ def test_deploy_to_k8s_should_create_delta_tables():
         "ALLOW_HTTP": "true",
     }
 
-    time.sleep(30)
+    # the first batch includes creating the tables and JVM warm-up, which can take
+    # a while on the CI runners
+    deadline = time.monotonic() + 300
+    attempt = 0
 
-    for attempt in range(5):
+    while True:
+        attempt += 1
         try:
             dt = DeltaTable(patient_table_path, storage_options=storage_options)
 
@@ -63,9 +67,8 @@ def test_deploy_to_k8s_should_create_delta_tables():
             break
         except Exception as e:
             logger.warning(
-                "Attempt {attempt} failed: {error}", attempt=attempt + 1, error=e
+                "Attempt {attempt} failed: {error}", attempt=attempt, error=e
             )
-            if attempt < 4:  # Don't sleep on last attempt
-                time.sleep(3**attempt)
-            else:
+            if time.monotonic() > deadline:
                 raise e
+            time.sleep(10)
