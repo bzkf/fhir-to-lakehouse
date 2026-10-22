@@ -66,7 +66,7 @@ You can invoke it by overriding the container's entrypoint:
 <!-- x-release-please-start-version -->
 
 ```sh
-docker run --rm -it --entrypoint python3 ghcr.io/bzkf/fhir-to-lakehouse:v1.14.2 src/lakehousekeeper.py --help
+docker run --rm -it --entrypoint python3 ghcr.io/bzkf/fhir-to-lakehouse:v1.15.0 src/lakehousekeeper.py --help
 ```
 
 For example, to list the files a VACUUM of all tables in `s3://fhir/warehouse/` would delete:
@@ -79,7 +79,7 @@ docker run --rm -it \
   -e AWS_REGION=us-east-1 \
   -e AWS_ALLOW_HTTP=true \
   --entrypoint python3 \
-  ghcr.io/bzkf/fhir-to-lakehouse:v1.14.2 \
+  ghcr.io/bzkf/fhir-to-lakehouse:v1.15.0 \
   src/lakehousekeeper.py vacuum --bucket-name=fhir --database-name-prefix=warehouse/ --dry-run=true
 ```
 
