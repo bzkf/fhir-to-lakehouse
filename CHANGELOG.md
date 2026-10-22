@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.14.2...v1.15.0) (2026-10-22)
+
+
+### Features
+
+* added more metrics and dashboard ([#218](https://github.com/bzkf/fhir-to-lakehouse/issues/218)) ([65a23b9](https://github.com/bzkf/fhir-to-lakehouse/commit/65a23b9e023e8400336eede465e10c973ede29ca))
+
 ## [1.14.2](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.14.1...v1.14.2) (2026-10-22)
 
 
