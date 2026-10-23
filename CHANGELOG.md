@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.15.0...v1.15.1) (2026-10-23)
+
+
+### Documentation
+
+* added progress per topic to dashboard ([#220](https://github.com/bzkf/fhir-to-lakehouse/issues/220)) ([f6dfcaf](https://github.com/bzkf/fhir-to-lakehouse/commit/f6dfcaf6debea0b4cfc19b0feb44fc6b2acd6016))
+
 ## [1.15.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.14.2...v1.15.0) (2026-10-22)
 
 
