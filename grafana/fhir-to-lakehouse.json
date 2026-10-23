@@ -115,6 +115,31 @@
       },
       {
         "type": "query",
+        "name": "topic",
+        "label": "Kafka topic",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values(spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\"}, topic)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "label_values(spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\"}, topic)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "options": []
+      },
+      {
+        "type": "query",
         "name": "resource_type",
         "label": "Resource type",
         "datasource": {
@@ -291,7 +316,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max(sum by (query_name) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", type=\"latest\", query_name=~\"$query_name\"}) - sum by (query_name) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", type=\"end\", query_name=~\"$query_name\"}))",
+          "expr": "max(sum by (query_name) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", type=\"latest\", query_name=~\"$query_name\", topic=~\"$topic\"}) - sum by (query_name) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", type=\"end\", query_name=~\"$query_name\", topic=~\"$topic\"}))",
           "legendFormat": "",
           "refId": "A",
           "range": true
@@ -743,8 +768,270 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (query_name) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", type=\"latest\", query_name=~\"$query_name\"}) - sum by (query_name) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", type=\"end\", query_name=~\"$query_name\"})",
+          "expr": "sum by (query_name) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", type=\"latest\", query_name=~\"$query_name\", topic=~\"$topic\"}) - sum by (query_name) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", type=\"end\", query_name=~\"$query_name\", topic=~\"$topic\"})",
           "legendFormat": "{{query_name}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Kafka topics",
+      "id": 28,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Remaining records by topic",
+      "description": "Kafka records of each topic not yet processed, summed over all partitions. Every query reads the whole topic, so a topic is done once its slowest query has caught up: Remaining is the lag of that query, Records/s the processing rate of the slowest query over the last 5 minutes, and Time remaining the remaining records divided by the rate of each query. An infinite time remaining means a query has lag but made no progress in the last 5 minutes.",
+      "id": 29,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (topic) (sum by (query_name, topic) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", query_name=~\"$query_name\", topic=~\"$topic\", type=\"latest\"}) - sum by (query_name, topic) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", query_name=~\"$query_name\", topic=~\"$topic\", type=\"end\"}))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "min by (topic) (sum by (query_name, topic) (deriv(spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", query_name=~\"$query_name\", topic=~\"$topic\", type=\"end\"}[5m])))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (topic) ((sum by (query_name, topic) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", query_name=~\"$query_name\", topic=~\"$topic\", type=\"latest\"}) - sum by (query_name, topic) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", query_name=~\"$query_name\", topic=~\"$topic\", type=\"end\"})) / (sum by (query_name, topic) (deriv(spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", query_name=~\"$query_name\", topic=~\"$topic\", type=\"end\"}[5m]))))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "C"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "topic": 0,
+              "Value #A": 1,
+              "Value #B": 2,
+              "Value #C": 3
+            },
+            "renameByName": {
+              "topic": "Topic",
+              "Value #A": "Remaining",
+              "Value #B": "Records/s",
+              "Value #C": "Time remaining"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Remaining"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 10000
+                    },
+                    {
+                      "color": "red",
+                      "value": 100000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Records/s"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time remaining"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": ["sum"],
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Remaining",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Consumer lag by topic",
+      "description": "Kafka records of each topic not yet processed by the slowest streaming query, summed over all partitions. A topic whose lag doesn't go down is starved by other topics.",
+      "id": 30,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (topic) (sum by (query_name, topic) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", query_name=~\"$query_name\", topic=~\"$topic\", type=\"latest\"}) - sum by (query_name, topic) (spark_streaming_query_kafka_offset{job=~\"$job\", instance=~\"$instance\", query_name=~\"$query_name\", topic=~\"$topic\", type=\"end\"}))",
+          "legendFormat": "{{topic}}",
           "refId": "A",
           "range": true
         }
@@ -793,7 +1080,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 31
       },
       "panels": []
     },
@@ -810,7 +1097,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 23
+        "y": 32
       },
       "targets": [
         {
@@ -872,7 +1159,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 23
+        "y": 32
       },
       "targets": [
         {
@@ -934,7 +1221,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 31
+        "y": 40
       },
       "targets": [
         {
@@ -996,7 +1283,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 31
+        "y": 40
       },
       "targets": [
         {
@@ -1054,7 +1341,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 48
       },
       "panels": []
     },
@@ -1071,7 +1358,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 40
+        "y": 49
       },
       "targets": [
         {
@@ -1186,7 +1473,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 40
+        "y": 49
       },
       "targets": [
         {
@@ -1268,7 +1555,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 48
+        "y": 57
       },
       "targets": [
         {
@@ -1330,7 +1617,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 48
+        "y": 57
       },
       "targets": [
         {
@@ -1388,7 +1675,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 56
+        "y": 65
       },
       "panels": []
     },
@@ -1405,7 +1692,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 57
+        "y": 66
       },
       "targets": [
         {
@@ -1467,7 +1754,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 57
+        "y": 66
       },
       "targets": [
         {
@@ -1555,7 +1842,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 57
+        "y": 66
       },
       "targets": [
         {
