@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -469,7 +469,7 @@ requires-dist = [
     { name = "pathling", specifier = "==9.8.0" },
     { name = "tenacity", specifier = "==9.1.4" },
     { name = "tomli", specifier = "==2.4.1" },
-    { name = "typed-settings", extras = ["attrs"], specifier = "==25.3.0" },
+    { name = "typed-settings", extras = ["attrs"], specifier = "==26.0.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -519,16 +519,16 @@ name = "ipython"
 version = "9.15.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "decorator", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "ipython-pygments-lexers", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "jedi", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "matplotlib-inline", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "pexpect", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "prompt-toolkit", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "psutil", marker = "sys_platform != 'cygwin' and sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "pygments", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "stack-data", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "traitlets", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "decorator" },
+    { name = "ipython-pygments-lexers" },
+    { name = "jedi" },
+    { name = "matplotlib-inline" },
+    { name = "pexpect" },
+    { name = "prompt-toolkit" },
+    { name = "psutil" },
+    { name = "pygments" },
+    { name = "stack-data" },
+    { name = "traitlets" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/53/59/165d3b4d75cc34add3122c4417ecb229085140ac573103c223cd01dde96f/ipython-9.15.0.tar.gz", hash = "sha256:da2819ce2aa83135257df830660b1176d986c3d2876db24df01974fa955b2756", size = 4442580, upload-time = "2026-06-26T11:03:35.913Z" }
 wheels = [
@@ -540,7 +540,7 @@ name = "ipython-pygments-lexers"
 version = "1.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pygments", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "pygments" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ef/4c/5dd1d8af08107f88c7f741ead7a40854b8ac24ddf9ae850afbcf698aa552/ipython_pygments_lexers-1.1.1.tar.gz", hash = "sha256:09c0138009e56b6854f9535736f4171d855c8c08a563a0dcd8022f78355c7e81", size = 8393, upload-time = "2025-01-17T11:24:34.505Z" }
 wheels = [
@@ -552,7 +552,7 @@ name = "jedi"
 version = "0.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "parso", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "parso" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/46/b7/a3635f6a2d7cf5b5dd98064fc1d5fbbafcb25477bcea204a3a92145d158b/jedi-0.20.0.tar.gz", hash = "sha256:c3f4ccbd276696f4b19c54618d4fb18f9fc24b0aef02acf704b23f487daa1011", size = 3119416, upload-time = "2026-05-01T23:38:47.814Z" }
 wheels = [
@@ -607,7 +607,7 @@ name = "matplotlib-inline"
 version = "0.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "traitlets", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "traitlets" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/bd/c0/9f7c9a46090390368a4d7bcb76bb87a4a36c421e4c0792cdb53486ffac7a/matplotlib_inline-0.2.2.tar.gz", hash = "sha256:72f3fe8fce36b70d4a5b612f899090cd0401deddc4ea90e1572b9f4bfb058c79", size = 8150, upload-time = "2026-05-08T17:33:33.49Z" }
 wheels = [
@@ -825,7 +825,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "ptyprocess" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -855,7 +855,7 @@ name = "prompt-toolkit"
 version = "3.0.52"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "wcwidth", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "wcwidth" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a1/96/06e01a7b38dce6fe1db213e061a4602dd6032a8a97ef6c1a862537732421/prompt_toolkit-3.0.52.tar.gz", hash = "sha256:28cde192929c8e7321de85de1ddbe736f1375148b02f2e17edd840042b1be855", size = 434198, upload-time = "2025-08-27T15:24:02.057Z" }
 wheels = [
@@ -1150,9 +1150,9 @@ name = "stack-data"
 version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "asttokens", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "executing", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "pure-eval", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "asttokens" },
+    { name = "executing" },
+    { name = "pure-eval" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/28/e3/55dcc2cfbc3ca9c29519eb6884dd1415ecb53b0e934862d3559ddcb7e20b/stack_data-0.6.3.tar.gz", hash = "sha256:836a778de4fec4dcd1dcd89ed8abff8a221f58308462e1c4aa2a3cf30148f0b9", size = 44707, upload-time = "2023-09-30T13:58:05.479Z" }
 wheels = [
@@ -1236,11 +1236,11 @@ wheels = [
 
 [[package]]
 name = "typed-settings"
-version = "25.3.0"
+version = "26.0.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/30/19/a8155d9f411ed7cb4a5f510a6c37ac09ea6065542c597c23d0a88ec2fbed/typed_settings-25.3.0.tar.gz", hash = "sha256:865eb52c3184f467705645a1e58db9d719e08b9d7957448a2ad8cbbc22ed21a6", size = 3492969, upload-time = "2025-11-29T22:10:25.768Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/e0/e218ac603b238b8860f4282abbb74a842a9c645fe1138283c2ca3115b86b/typed_settings-26.0.0.tar.gz", hash = "sha256:88d0da33e440a0419f194e24b92ecce4c12e7c165b5b96697fe4140c83d386ea", size = 3525263, upload-time = "2026-09-02T20:32:30.457Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/9e/d01ef2bed8e995bbdeeb5307a571729a10545de4a6f8f06d9175fc7a1978/typed_settings-25.3.0-py3-none-any.whl", hash = "sha256:8fe578c84ae2e44f6e8bdde256d2449fbff45f47dca3c4092aeee03900efc12c", size = 63962, upload-time = "2025-11-29T22:10:23.77Z" },
+    { url = "https://files.pythonhosted.org/packages/e9/52/c293cdd51731f23ddbc1764974934f6ac2ae4575e594fd9d8edcfb35b892/typed_settings-26.0.0-py3-none-any.whl", hash = "sha256:5ab31409af33d7912f02df51b38d66738e0dc990c042ce1b45a6b30dc9caba04", size = 65971, upload-time = "2026-09-02T20:32:31.905Z" },
 ]
 
 [package.optional-dependencies]
