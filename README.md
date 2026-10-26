@@ -17,9 +17,7 @@ For example, create the following settings.toml file:
 checkpoint_interval = "123"
 
 [fhir-to-lakehouse.delta.clustering_columns_by_resource_type]
-Patient = ["id", "birthDate"]
-Observation = ["id", "effectiveDateTime", "subject"]
-Condition = ["id", "recordedDate", "onsetDateTime", "subject"]
+Patient = ["_kafka_batch_timestamp", "birthDate"]
 ```
 
 and start the application with the env var `FHIR_TO_LAKEHOUSE_SETTINGS` pointing to this file:
@@ -27,6 +25,28 @@ and start the application with the env var `FHIR_TO_LAKEHOUSE_SETTINGS` pointing
 ```sh
 FHIR_TO_LAKEHOUSE_SETTINGS=settings.toml python src/main.py
 ```
+
+### Clustering
+
+Every table has a `_kafka_batch_timestamp` column: the latest Kafka message timestamp of the micro-batch that last
+inserted or updated the row. By default, all tables are [liquid clustered](https://docs.delta.io/latest/delta-clustering.html)
+by it, so recently written rows end up in the same files. A MERGE rewrites every file that contains a row it updates,
+so if updates mostly affect recently written resources, each MERGE only rewrites a few files instead of most of the
+table. The "Delta MERGE" row of the [dashboard](#monitoring) shows how much of each table a MERGE rewrites.
+
+- `delta.clustering_columns_by_resource_type` replaces the default clustering columns for a resource type. Include
+  `_kafka_batch_timestamp` to keep the effect, every additional column spreads the clustering thinner. Clustering
+  by `id` doesn't reduce the rewrites, because the ids of a batch are spread over the entire table.
+- `delta.default_clustering_columns = []` disables the clustering of new tables.
+- Clustering columns need statistics, which Delta only collects for the first 32 columns by default. This is why
+  `_kafka_batch_timestamp` is the first column.
+- The data is clustered by OPTIMIZE, which runs every `spark.upkeep_interval` batches or via the
+  [Lakehousekeeper](#lakehousekeeper).
+
+Existing tables get the `_kafka_batch_timestamp` column automatically, rows written before are `NULL`. Their
+clustering is only changed to the configured columns if `DELTA_APPLY_CLUSTERING_TO_EXISTING_TABLES=true`. Clustering
+upgrades the table protocol: [delta-rs](https://github.com/delta-io/delta-rs) can still read clustered tables, but
+not write to them. The Lakehousekeeper uses Spark for these tables automatically.
 
 ### Spark Config
 
@@ -64,6 +84,8 @@ into Grafana and select your Prometheus data source. The panel descriptions expl
 
 A CLI tool called `lakehousekeeper` is also part of the container distribution.
 It implements commands for vacuuming, optimizing, and registering tables from S3-compatible object storage.
+Vacuuming and optimizing use delta-rs by default, except for tables it can't write to, such as liquid clustered
+tables, which always use Spark. Only Spark's OPTIMIZE clusters the data.
 You can invoke it by overriding the container's entrypoint:
 
 <!-- x-release-please-start-version -->

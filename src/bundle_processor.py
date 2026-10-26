@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from datetime import datetime
 
 from delta import DeltaTable
 from loguru import logger
@@ -17,7 +18,7 @@ from tenacity import (
 )
 
 from metrics import DURATION_SECONDS_BUCKETS, MeasureElapsed, meter
-from settings import Settings
+from settings import KAFKA_BATCH_TIMESTAMP_COLUMN, Settings
 
 delta_operations_timer = meter.create_histogram(
     name="delta-operation-duration",
@@ -192,12 +193,22 @@ class BundleProcessor:
         # a single job for all counts instead of separate count(), distinct()
         # and per-method counts
         counts_by_resource_type: dict[str, dict[str, int]] = {}
+        kafka_timestamps_by_resource_type: dict[str, datetime] = {}
         for row in (
-            latest_df.groupBy("resource_type", "request_method").count().collect()
+            latest_df.groupBy("resource_type", "request_method")
+            .agg(
+                F.count("*").alias("count"),
+                F.max("timestamp").alias("max_timestamp"),
+            )
+            .collect()
         ):
-            counts_by_resource_type.setdefault(row["resource_type"], {})[
+            resource_type = row["resource_type"]
+            counts_by_resource_type.setdefault(resource_type, {})[
                 row["request_method"]
             ] = row["count"]
+            latest_timestamp = kafka_timestamps_by_resource_type.get(resource_type)
+            if latest_timestamp is None or row["max_timestamp"] > latest_timestamp:
+                kafka_timestamps_by_resource_type[resource_type] = row["max_timestamp"]
 
         batch_size = sum(
             count
@@ -245,6 +256,9 @@ class BundleProcessor:
                         batch_id,
                         put_count=counts.get("PUT", 0),
                         delete_count=counts.get("DELETE", 0),
+                        kafka_batch_timestamp=kafka_timestamps_by_resource_type[
+                            resource_type
+                        ],
                     )
                     logger.info("Finished processing resource batch")
 
@@ -257,6 +271,7 @@ class BundleProcessor:
         batch_id: int,
         put_count: int,
         delete_count: int,
+        kafka_batch_timestamp: datetime,
     ):
         put_df = single_resource_type_df.filter(F.col("request_method") == "PUT")
 
@@ -273,6 +288,9 @@ class BundleProcessor:
         delta_table_builder = (
             DeltaTable.createIfNotExists(self.pc.spark)
             .location(resource_delta_table_path)
+            # the first column, because clustering requires statistics, which Delta
+            # only collects for the first 32 columns by default
+            .addColumn(KAFKA_BATCH_TIMESTAMP_COLUMN, "TIMESTAMP")
             .addColumns(resource_df.schema)
             .property(
                 "delta.autoOptimize.autoCompact",
@@ -296,13 +314,20 @@ class BundleProcessor:
             )
         )
 
-        clustering_columns_by_resource_type = (
-            self.settings.delta.clustering_columns_by_resource_type
+        cluster_columns = self.settings.delta.clustering_columns_by_resource_type.get(
+            resource_type, self.settings.delta.default_clustering_columns
         )
-        if cluster_columns := clustering_columns_by_resource_type.get(resource_type):
+        if cluster_columns:
             delta_table_builder = delta_table_builder.clusterBy(cluster_columns)
 
         delta_table = delta_table_builder.execute()
+
+        # tables created by earlier versions don't have the column yet
+        if KAFKA_BATCH_TIMESTAMP_COLUMN not in delta_table.toDF().columns:
+            self._add_kafka_batch_timestamp_column(resource_delta_table_path)
+            # Delta refuses to MERGE through an object created before the schema
+            # change
+            delta_table = DeltaTable.forPath(self.pc.spark, resource_delta_table_path)
 
         table_details = delta_table.detail().first()
         if table_details is not None:
@@ -313,6 +338,17 @@ class BundleProcessor:
             delta_table_files_gauge.set(
                 table_details["numFiles"], {"resource_type": resource_type}
             )
+
+            # the clustering columns passed when creating a table are ignored if it
+            # already exists
+            if (
+                self.settings.delta.apply_clustering_to_existing_tables
+                and cluster_columns
+                and list(table_details["clusteringColumns"]) != list(cluster_columns)
+            ):
+                self._change_clustering_columns(
+                    resource_delta_table_path, cluster_columns
+                )
 
         # XXX: not necessary for every batch...
         if self.settings.metastore_url:
@@ -326,7 +362,9 @@ class BundleProcessor:
 
         # upserts and deletes are applied in a single MERGE, so a batch results in
         # one commit per table instead of two
-        merge_source_df = resource_df.withColumn(MERGE_OPERATION_COLUMN, F.lit("PUT"))
+        merge_source_df = resource_df.withColumn(
+            MERGE_OPERATION_COLUMN, F.lit("PUT")
+        ).withColumn(KAFKA_BATCH_TIMESTAMP_COLUMN, F.lit(kafka_batch_timestamp))
 
         if delete_count > 0:
             delete_df = single_resource_type_df.filter(
@@ -474,6 +512,28 @@ class BundleProcessor:
             delta_table.vacuum(retentionHours=self.settings.vacuum_retention_hours)
 
         logger.info("Finished vacuuming table.")
+
+    def _add_kafka_batch_timestamp_column(self, table_path: str):
+        # FIRST for the same reason it's the first column of new tables
+        query = (
+            f"ALTER TABLE delta.`{table_path}` "
+            + f"ADD COLUMNS ({KAFKA_BATCH_TIMESTAMP_COLUMN} TIMESTAMP FIRST)"
+        )
+        logger.info(query)
+        self.pc.spark.sql(query)
+
+    def _change_clustering_columns(self, table_path: str, columns: list[str]):
+        quoted_columns = ", ".join(
+            ".".join(f"`{part}`" for part in column.split(".")) for column in columns
+        )
+        query = f"ALTER TABLE delta.`{table_path}` CLUSTER BY ({quoted_columns})"
+        logger.info(query)
+        try:
+            self.pc.spark.sql(query)
+        except Exception as e:
+            # e.g. partitioned tables can't be clustered. Not worth failing the batch,
+            # the data is still written, just not clustered.
+            logger.warning("Failed to change the clustering columns: {e}", e=e)
 
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=10),
