@@ -1211,7 +1211,7 @@
     {
       "type": "timeseries",
       "title": "Delta operation duration p95",
-      "description": "95th percentile duration of the Delta operations by operation and resource type. MERGE time grows with the size of the target table unless the table is clustered by id or uses deletion vectors.",
+      "description": "95th percentile duration of the Delta operations by operation and resource type. MERGE time grows with the size of the target table when every MERGE rewrites most of its files, see the Delta MERGE row.",
       "id": 17,
       "datasource": {
         "type": "prometheus",
@@ -1334,6 +1334,456 @@
     },
     {
       "type": "row",
+      "title": "Delta MERGE",
+      "id": 31,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Average MERGE time by phase: $resource_type",
+      "description": "Where the time of a MERGE goes, as reported by Delta. materialize_source reads the batch and encodes the resources, which grows with the batch size. scan finds the files with rows matching the batch and reads the id column of the whole table. rewrite writes every file with a matching row again, including all unchanged rows in it. A dominating rewrite is reduced by deletion vectors or, if updates mostly hit recently written resources, by clustering the table by write time.",
+      "id": 32,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 49
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (phase) (rate(delta_merge_phase_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"}[$__rate_interval])) / sum by (phase) (rate(delta_merge_phase_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"}[$__rate_interval]))",
+          "legendFormat": "{{phase}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "repeat": "resource_type",
+      "repeatDirection": "h",
+      "maxPerRow": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "Unchanged rows rewritten per changed row",
+      "description": "Delta rewrites whole files, so every updated or deleted row also writes all unchanged rows of its file again. 0 is ideal. If the number approaches the table's row count divided by the batch's changes, every MERGE rewrites the whole table. Inserts never rewrite files and aren't part of this ratio.",
+      "id": 33,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 57
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (resource_type) (rate(delta_merge_rows_total{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\", action=\"copied\"}[$__rate_interval])) / sum by (resource_type) (rate(delta_merge_rows_total{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\", action=~\"updated|deleted\"}[$__rate_interval]))",
+          "legendFormat": "{{resource_type}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Share of the table rewritten per MERGE",
+      "description": "Bytes of existing files replaced by an average MERGE, relative to the table size. Close to 100% means every MERGE rewrites the whole table, so its duration grows with the table, not with the batch. It's an approximation and can briefly exceed 100% while a table shrinks, e.g. after deletes.",
+      "id": 34,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 57
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(sum by (resource_type) (rate(delta_merge_bytes_total{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\", action=\"removed\"}[$__rate_interval])) / sum by (resource_type) (rate(delta_merge_phase_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\", phase=\"rewrite\"}[$__rate_interval]))) / sum by (resource_type) (max_over_time(delta_table_size_bytes{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"}[$__rate_interval]))",
+          "legendFormat": "{{resource_type}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Data written by MERGE",
+      "description": "Bytes of new files written by MERGE per second, including rewritten unchanged rows.",
+      "id": 35,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 57
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (resource_type) (rate(delta_merge_bytes_total{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\", action=\"added\"}[$__rate_interval]))",
+          "legendFormat": "{{resource_type}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Delta table size",
+      "description": "Size of the current version of each table, excluding files only kept for time travel.",
+      "id": 36,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 65
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (resource_type) (delta_table_size_bytes{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"})",
+          "legendFormat": "{{resource_type}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Delta table files",
+      "description": "Number of files of the current version of each table.",
+      "id": 37,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 65
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (resource_type) (delta_table_files{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"})",
+          "legendFormat": "{{resource_type}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Average file size",
+      "description": "Many small files slow down scans, including the scan of every MERGE. Large files make every rewrite of a file more expensive. OPTIMIZE writes files of up to 1 GB by default.",
+      "id": 38,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 65
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (resource_type) (delta_table_size_bytes{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"}) / sum by (resource_type) (delta_table_files{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"})",
+          "legendFormat": "{{resource_type}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
       "title": "Driver memory",
       "id": 19,
       "collapsed": false,
@@ -1341,7 +1791,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 73
       },
       "panels": []
     },
@@ -1358,7 +1808,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 49
+        "y": 74
       },
       "targets": [
         {
@@ -1473,7 +1923,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 49
+        "y": 74
       },
       "targets": [
         {
@@ -1555,7 +2005,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 82
       },
       "targets": [
         {
@@ -1617,7 +2067,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 57
+        "y": 82
       },
       "targets": [
         {
@@ -1675,7 +2125,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 90
       },
       "panels": []
     },
@@ -1692,7 +2142,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 66
+        "y": 91
       },
       "targets": [
         {
@@ -1754,7 +2204,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 66
+        "y": 91
       },
       "targets": [
         {
@@ -1842,7 +2292,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 66
+        "y": 91
       },
       "targets": [
         {
