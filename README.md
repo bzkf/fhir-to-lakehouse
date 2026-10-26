@@ -17,9 +17,7 @@ For example, create the following settings.toml file:
 checkpoint_interval = "123"
 
 [fhir-to-lakehouse.delta.clustering_columns_by_resource_type]
-Patient = ["id", "birthDate"]
-Observation = ["id", "effectiveDateTime", "subject"]
-Condition = ["id", "recordedDate", "onsetDateTime", "subject"]
+Patient = ["_kafka_batch_timestamp", "birthDate"]
 ```
 
 and start the application with the env var `FHIR_TO_LAKEHOUSE_SETTINGS` pointing to this file:
@@ -27,6 +25,28 @@ and start the application with the env var `FHIR_TO_LAKEHOUSE_SETTINGS` pointing
 ```sh
 FHIR_TO_LAKEHOUSE_SETTINGS=settings.toml python src/main.py
 ```
+
+### Clustering
+
+Every table has a `_kafka_batch_timestamp` column: the latest Kafka message timestamp of the micro-batch that last
+inserted or updated the row. By default, all tables are [liquid clustered](https://docs.delta.io/latest/delta-clustering.html)
+by it, so recently written rows end up in the same files. A MERGE rewrites every file that contains a row it updates,
+so if updates mostly affect recently written resources, each MERGE only rewrites a few files instead of most of the
+table. The "Delta MERGE" row of the [dashboard](#monitoring) shows how much of each table a MERGE rewrites.
+
+- `delta.clustering_columns_by_resource_type` replaces the default clustering columns for a resource type. Include
+  `_kafka_batch_timestamp` to keep the effect, every additional column spreads the clustering thinner. Clustering
+  by `id` doesn't reduce the rewrites, because the ids of a batch are spread over the entire table.
+- `delta.default_clustering_columns = []` disables the clustering of new tables.
+- Clustering columns need statistics, which Delta only collects for the first 32 columns by default. This is why
+  `_kafka_batch_timestamp` is the first column.
+- The data is clustered by OPTIMIZE, which runs every `spark.upkeep_interval` batches or via the
+  [Lakehousekeeper](#lakehousekeeper).
+
+Existing tables get the `_kafka_batch_timestamp` column automatically, rows written before are `NULL`. Their
+clustering is only changed to the configured columns if `DELTA_APPLY_CLUSTERING_TO_EXISTING_TABLES=true`. Clustering
+upgrades the table protocol: [delta-rs](https://github.com/delta-io/delta-rs) can still read clustered tables, but
+not write to them. The Lakehousekeeper uses Spark for these tables automatically.
 
 ### Spark Config
 
@@ -39,20 +59,23 @@ Prometheus metrics are exposed on port `8000` at `/metrics` (configurable via `M
 Besides the application metrics, the endpoint also includes the driver's JVM memory and GC metrics and Spark's task,
 storage memory, and shuffle metrics, so Spark's own UI port doesn't need to be scraped.
 
-| Metric                                                                                   | Description                                                             |
-| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `resources_processed_total`                                                              | resources written or deleted, by resource type                          |
-| `delta_merge_rows_total`                                                                 | rows inserted, updated, or deleted by Delta MERGE, as reported by Delta |
-| `delta_operation_duration_seconds`                                                       | duration of Delta operations (merge, optimize, vacuum, register)        |
-| `spark_streaming_query_input_rows_total`                                                 | Kafka records read by streaming query                                   |
-| `spark_streaming_query_batch_duration_seconds`                                           | duration of non-empty micro-batches by streaming query                  |
-| `spark_streaming_query_trigger_phase_duration_seconds`                                   | duration of each phase of the latest trigger, e.g. `addBatch`           |
-| `spark_streaming_query_kafka_offset`                                                     | start, end, and latest Kafka offsets, used to calculate the lag         |
-| `jvm_memory_{used,committed,limit,used_after_last_gc}_bytes`                             | JVM memory by memory pool                                               |
-| `jvm_gc_collection_time_seconds_total`, `jvm_gc_collections_total`                       | GC time and count by collector                                          |
-| `jvm_process_resident_memory_bytes`                                                      | resident memory of the JVM process, including off-heap memory           |
-| `spark_executor_tasks_total`, `spark_executor_active_tasks`                              | finished and running Spark tasks                                        |
-| `spark_executor_storage_memory_{used,limit}_bytes`, `spark_executor_shuffle_bytes_total` | cached data and shuffle data                                            |
+| Metric                                                                                   | Description                                                                               |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `resources_processed_total`                                                              | resources written or deleted, by resource type                                            |
+| `delta_merge_rows_total`                                                                 | rows inserted, updated, deleted, or copied unchanged by Delta MERGE, as reported by Delta |
+| `delta_merge_phase_duration_seconds`                                                     | duration of the `materialize_source`, `scan`, and `rewrite` phases of each Delta MERGE    |
+| `delta_merge_files_total`, `delta_merge_bytes_total`                                     | files and bytes added and removed by Delta MERGE                                          |
+| `delta_table_size_bytes`, `delta_table_files`                                            | size and number of files of each Delta table                                              |
+| `delta_operation_duration_seconds`                                                       | duration of Delta operations (merge, optimize, vacuum, register)                          |
+| `spark_streaming_query_input_rows_total`                                                 | Kafka records read by streaming query                                                     |
+| `spark_streaming_query_batch_duration_seconds`                                           | duration of non-empty micro-batches by streaming query                                    |
+| `spark_streaming_query_trigger_phase_duration_seconds`                                   | duration of each phase of the latest trigger, e.g. `addBatch`                             |
+| `spark_streaming_query_kafka_offset`                                                     | start, end, and latest Kafka offsets, used to calculate the lag                           |
+| `jvm_memory_{used,committed,limit,used_after_last_gc}_bytes`                             | JVM memory by memory pool                                                                 |
+| `jvm_gc_collection_time_seconds_total`, `jvm_gc_collections_total`                       | GC time and count by collector                                                            |
+| `jvm_process_resident_memory_bytes`                                                      | resident memory of the JVM process, including off-heap memory                             |
+| `spark_executor_tasks_total`, `spark_executor_active_tasks`                              | finished and running Spark tasks                                                          |
+| `spark_executor_storage_memory_{used,limit}_bytes`, `spark_executor_shuffle_bytes_total` | cached data and shuffle data                                                              |
 
 The [grafana/fhir-to-lakehouse.json](grafana/fhir-to-lakehouse.json) dashboard visualizes these metrics. Import it
 into Grafana and select your Prometheus data source. The panel descriptions explain what to look out for.
@@ -61,6 +84,8 @@ into Grafana and select your Prometheus data source. The panel descriptions expl
 
 A CLI tool called `lakehousekeeper` is also part of the container distribution.
 It implements commands for vacuuming, optimizing, and registering tables from S3-compatible object storage.
+Vacuuming and optimizing use delta-rs by default, except for tables it can't write to, such as liquid clustered
+tables, which always use Spark. Only Spark's OPTIMIZE clusters the data.
 You can invoke it by overriding the container's entrypoint:
 
 <!-- x-release-please-start-version -->

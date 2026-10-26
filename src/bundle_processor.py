@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from datetime import datetime
 
 from delta import DeltaTable
 from loguru import logger
@@ -17,7 +18,7 @@ from tenacity import (
 )
 
 from metrics import DURATION_SECONDS_BUCKETS, MeasureElapsed, meter
-from settings import Settings
+from settings import KAFKA_BATCH_TIMESTAMP_COLUMN, Settings
 
 delta_operations_timer = meter.create_histogram(
     name="delta-operation-duration",
@@ -35,9 +36,49 @@ resources_processed_counter = meter.create_counter(
 delta_merge_rows_counter = meter.create_counter(
     name="delta-merge-rows",
     unit="{Count}",
-    description="Rows inserted, updated, or deleted in Delta Tables by MERGE, "
-    + "as reported by Delta",
+    description="Rows inserted, updated, deleted, or copied unchanged into new files "
+    + "in Delta Tables by MERGE, as reported by Delta",
 )
+
+delta_merge_phase_timer = meter.create_histogram(
+    name="delta-merge-phase-duration",
+    unit="s",
+    description="Duration of the phases of Delta MERGE operations, as reported by "
+    + "Delta: materialize_source (reading and encoding the batch), scan (finding "
+    + "the files with matching rows), and rewrite (writing the changed files)",
+    explicit_bucket_boundaries_advisory=DURATION_SECONDS_BUCKETS,
+)
+
+delta_merge_files_counter = meter.create_counter(
+    name="delta-merge-files",
+    unit="{Count}",
+    description="Files added to or removed from Delta Tables by MERGE",
+)
+
+delta_merge_bytes_counter = meter.create_counter(
+    name="delta-merge-bytes",
+    unit="By",
+    description="Bytes added to or removed from Delta Tables by MERGE",
+)
+
+delta_table_size_gauge = meter.create_gauge(
+    name="delta-table-size",
+    unit="By",
+    description="Size of the Delta Tables before the latest MERGE",
+)
+
+delta_table_files_gauge = meter.create_gauge(
+    name="delta-table-files",
+    unit="{Count}",
+    description="Number of files of the Delta Tables before the latest MERGE",
+)
+
+# the phases reported in the history of a MERGE, by the name they are exported with
+MERGE_PHASE_METRICS = {
+    "materialize_source": "materializeSourceTimeMs",
+    "scan": "scanTimeMs",
+    "rewrite": "rewriteTimeMs",
+}
 
 # added to the MERGE source to tell upserts and deletes apart. Not part of the
 # target table schema, so it is ignored by `whenMatchedUpdateAll` and
@@ -49,6 +90,9 @@ class BundleProcessor:
     def __init__(self, pc: PathlingContext, settings: Settings):
         self.pc = pc
         self.settings = settings
+        # table version of the latest MERGE whose history metrics were recorded,
+        # by resource type
+        self.last_recorded_merge_versions: dict[str, int] = {}
 
     def prepare_stream(self, df: DataFrame):
         fhir_bundle_schema = StructType(
@@ -149,12 +193,22 @@ class BundleProcessor:
         # a single job for all counts instead of separate count(), distinct()
         # and per-method counts
         counts_by_resource_type: dict[str, dict[str, int]] = {}
+        kafka_timestamps_by_resource_type: dict[str, datetime] = {}
         for row in (
-            latest_df.groupBy("resource_type", "request_method").count().collect()
+            latest_df.groupBy("resource_type", "request_method")
+            .agg(
+                F.count("*").alias("count"),
+                F.max("timestamp").alias("max_timestamp"),
+            )
+            .collect()
         ):
-            counts_by_resource_type.setdefault(row["resource_type"], {})[
+            resource_type = row["resource_type"]
+            counts_by_resource_type.setdefault(resource_type, {})[
                 row["request_method"]
             ] = row["count"]
+            latest_timestamp = kafka_timestamps_by_resource_type.get(resource_type)
+            if latest_timestamp is None or row["max_timestamp"] > latest_timestamp:
+                kafka_timestamps_by_resource_type[resource_type] = row["max_timestamp"]
 
         batch_size = sum(
             count
@@ -202,6 +256,9 @@ class BundleProcessor:
                         batch_id,
                         put_count=counts.get("PUT", 0),
                         delete_count=counts.get("DELETE", 0),
+                        kafka_batch_timestamp=kafka_timestamps_by_resource_type[
+                            resource_type
+                        ],
                     )
                     logger.info("Finished processing resource batch")
 
@@ -214,6 +271,7 @@ class BundleProcessor:
         batch_id: int,
         put_count: int,
         delete_count: int,
+        kafka_batch_timestamp: datetime,
     ):
         put_df = single_resource_type_df.filter(F.col("request_method") == "PUT")
 
@@ -230,6 +288,9 @@ class BundleProcessor:
         delta_table_builder = (
             DeltaTable.createIfNotExists(self.pc.spark)
             .location(resource_delta_table_path)
+            # the first column, because clustering requires statistics, which Delta
+            # only collects for the first 32 columns by default
+            .addColumn(KAFKA_BATCH_TIMESTAMP_COLUMN, "TIMESTAMP")
             .addColumns(resource_df.schema)
             .property(
                 "delta.autoOptimize.autoCompact",
@@ -253,18 +314,41 @@ class BundleProcessor:
             )
         )
 
-        clustering_columns_by_resource_type = (
-            self.settings.delta.clustering_columns_by_resource_type
+        cluster_columns = self.settings.delta.clustering_columns_by_resource_type.get(
+            resource_type, self.settings.delta.default_clustering_columns
         )
-        if cluster_columns := clustering_columns_by_resource_type.get(resource_type):
+        if cluster_columns:
             delta_table_builder = delta_table_builder.clusterBy(cluster_columns)
 
         delta_table = delta_table_builder.execute()
 
-        logger.info(
-            "Table details: {details}",
-            details=delta_table.detail().toJSON().collect(),
-        )
+        # tables created by earlier versions don't have the column yet
+        if KAFKA_BATCH_TIMESTAMP_COLUMN not in delta_table.toDF().columns:
+            self._add_kafka_batch_timestamp_column(resource_delta_table_path)
+            # Delta refuses to MERGE through an object created before the schema
+            # change
+            delta_table = DeltaTable.forPath(self.pc.spark, resource_delta_table_path)
+
+        table_details = delta_table.detail().first()
+        if table_details is not None:
+            logger.info("Table details: {details}", details=table_details.asDict())
+            delta_table_size_gauge.set(
+                table_details["sizeInBytes"], {"resource_type": resource_type}
+            )
+            delta_table_files_gauge.set(
+                table_details["numFiles"], {"resource_type": resource_type}
+            )
+
+            # the clustering columns passed when creating a table are ignored if it
+            # already exists
+            if (
+                self.settings.delta.apply_clustering_to_existing_tables
+                and cluster_columns
+                and list(table_details["clusteringColumns"]) != list(cluster_columns)
+            ):
+                self._change_clustering_columns(
+                    resource_delta_table_path, cluster_columns
+                )
 
         # XXX: not necessary for every batch...
         if self.settings.metastore_url:
@@ -278,7 +362,9 @@ class BundleProcessor:
 
         # upserts and deletes are applied in a single MERGE, so a batch results in
         # one commit per table instead of two
-        merge_source_df = resource_df.withColumn(MERGE_OPERATION_COLUMN, F.lit("PUT"))
+        merge_source_df = resource_df.withColumn(
+            MERGE_OPERATION_COLUMN, F.lit("PUT")
+        ).withColumn(KAFKA_BATCH_TIMESTAMP_COLUMN, F.lit(kafka_batch_timestamp))
 
         if delete_count > 0:
             delete_df = single_resource_type_df.filter(
@@ -298,6 +384,13 @@ class BundleProcessor:
             self._merge_into_table(
                 merge_source_df, resource_type, delta_table, put_count, delete_count
             )
+
+        # outside of the retried `_merge_into_table`, so a failure to read the
+        # metrics never repeats the MERGE
+        try:
+            self._record_merge_history_metrics(delta_table, resource_type)
+        except Exception as e:
+            logger.warning("Failed to record the MERGE metrics: {e}", e=e)
 
         # TODO: should vacuum all tables, not just the ones in the batch
         if batch_id % self.settings.spark.upkeep_interval == 0:
@@ -351,6 +444,48 @@ class BundleProcessor:
             delete_count, {"operation": "delete", "resource_type": resource_type}
         )
 
+    def _record_merge_history_metrics(
+        self, delta_table: DeltaTable, resource_type: str
+    ):
+        # the result of the MERGE only contains the row counts, everything else is
+        # only part of the table history. Each table is written by a single query,
+        # so the latest commit is the MERGE that just finished, unless it didn't
+        # commit at all.
+        commit = delta_table.history(1).first()
+        if (
+            commit is None
+            or commit["operation"] != "MERGE"
+            or self.last_recorded_merge_versions.get(resource_type) == commit["version"]
+        ):
+            return
+        self.last_recorded_merge_versions[resource_type] = commit["version"]
+
+        metrics = commit["operationMetrics"]
+        attributes = {"resource_type": resource_type}
+
+        for phase, key in MERGE_PHASE_METRICS.items():
+            if key in metrics:
+                delta_merge_phase_timer.record(
+                    int(metrics[key]) / 1000, {**attributes, "phase": phase}
+                )
+
+        # rows that weren't changed, but had to be written again because they are
+        # in the same file as a changed row
+        delta_merge_rows_counter.add(
+            int(metrics.get("numTargetRowsCopied", 0)),
+            {**attributes, "action": "copied"},
+        )
+
+        for action in ("added", "removed"):
+            delta_merge_files_counter.add(
+                int(metrics.get(f"numTargetFiles{action.capitalize()}", 0)),
+                {**attributes, "action": action},
+            )
+            delta_merge_bytes_counter.add(
+                int(metrics.get(f"numTargetBytes{action.capitalize()}", 0)),
+                {**attributes, "action": action},
+            )
+
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=10),
         stop=stop_after_attempt(5),
@@ -377,6 +512,28 @@ class BundleProcessor:
             delta_table.vacuum(retentionHours=self.settings.vacuum_retention_hours)
 
         logger.info("Finished vacuuming table.")
+
+    def _add_kafka_batch_timestamp_column(self, table_path: str):
+        # FIRST for the same reason it's the first column of new tables
+        query = (
+            f"ALTER TABLE delta.`{table_path}` "
+            + f"ADD COLUMNS ({KAFKA_BATCH_TIMESTAMP_COLUMN} TIMESTAMP FIRST)"
+        )
+        logger.info(query)
+        self.pc.spark.sql(query)
+
+    def _change_clustering_columns(self, table_path: str, columns: list[str]):
+        quoted_columns = ", ".join(
+            ".".join(f"`{part}`" for part in column.split(".")) for column in columns
+        )
+        query = f"ALTER TABLE delta.`{table_path}` CLUSTER BY ({quoted_columns})"
+        logger.info(query)
+        try:
+            self.pc.spark.sql(query)
+        except Exception as e:
+            # e.g. partitioned tables can't be clustered. Not worth failing the batch,
+            # the data is still written, just not clustered.
+            logger.warning("Failed to change the clustering columns: {e}", e=e)
 
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=10),
