@@ -3,11 +3,12 @@ import os
 from pathlib import Path
 
 import pytest
-from bundle_processor import BundleProcessor
 from delta import DeltaTable
 from pathling import PathlingContext
 from pyspark.sql import SparkSession
 from pyspark.sql.types import BinaryType, StructField, StructType
+
+from bundle_processor import BundleProcessor
 from settings import (
     DeltaSettings,
     KafkaSettings,
@@ -271,14 +272,14 @@ def test_liquid_clustering(pathling_fixture, tmp_path):
 
 
 def test_batch_with_put_and_delete_should_only_retain_latest(
-        pathling_fixture, tmp_path
+    pathling_fixture, tmp_path
 ):
     # it might be easiert to just hard-code the data here vs reading from files
     data = [
         {
             "key": "0",
             "value": (
-                    HERE / "fixtures/resources/batches/put-and-delete/put-0.json"
+                HERE / "fixtures/resources/batches/put-and-delete/put-0.json"
             ).read_text(),
             "timestamp": datetime.datetime.now(),
             "partition": 0,
@@ -287,7 +288,7 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
         {
             "key": "1",
             "value": (
-                    HERE / "fixtures/resources/batches/put-and-delete/put-1.json"
+                HERE / "fixtures/resources/batches/put-and-delete/put-1.json"
             ).read_text(),
             "timestamp": datetime.datetime.now(),
             "partition": 1,
@@ -296,7 +297,7 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
         {
             "key": "2",
             "value": (
-                    HERE / "fixtures/resources/batches/put-and-delete/put-2.json"
+                HERE / "fixtures/resources/batches/put-and-delete/put-2.json"
             ).read_text(),
             "timestamp": datetime.datetime.now(),
             "partition": 0,
@@ -305,7 +306,7 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
         {
             "key": "1",
             "value": (
-                    HERE / "fixtures/resources/batches/put-and-delete/delete-1.json"
+                HERE / "fixtures/resources/batches/put-and-delete/delete-1.json"
             ).read_text(),
             "timestamp": datetime.datetime.now(),
             "partition": 1,
@@ -314,7 +315,7 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
         {
             "key": "1",
             "value": (
-                    HERE / "fixtures/resources/batches/put-and-delete/put-1.json"
+                HERE / "fixtures/resources/batches/put-and-delete/put-1.json"
             ).read_text(),
             "timestamp": datetime.datetime.now(),
             "partition": 1,
@@ -323,7 +324,7 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
         {
             "key": "1",
             "value": (
-                    HERE / "fixtures/resources/batches/put-and-delete/delete-1.json"
+                HERE / "fixtures/resources/batches/put-and-delete/delete-1.json"
             ).read_text(),
             "timestamp": datetime.datetime.now(),
             "partition": 1,
@@ -332,7 +333,7 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
         {
             "key": "2",
             "value": (
-                    HERE / "fixtures/resources/batches/put-and-delete/put-2-newer.json"
+                HERE / "fixtures/resources/batches/put-and-delete/put-2-newer.json"
             ).read_text(),
             "timestamp": datetime.datetime.now(),
             "partition": 0,
