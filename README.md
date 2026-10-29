@@ -73,9 +73,9 @@ For example, to list the files a VACUUM of all tables in `s3://fhir/warehouse/` 
 
 ```sh
 docker run --rm -it \
-  -e AWS_ENDPOINT_URL=http://minio:9000 \
+  -e AWS_ENDPOINT_URL=http://seaweedfs:8333 \
   -e AWS_ACCESS_KEY_ID=admin \
-  -e AWS_SECRET_ACCESS_KEY=miniopass \
+  -e AWS_SECRET_ACCESS_KEY=seaweedpass \
   -e AWS_REGION=us-east-1 \
   -e AWS_ALLOW_HTTP=true \
   --entrypoint python3 \
@@ -106,7 +106,7 @@ The [compose.yaml](compose.yaml) contains the development fixtures required to r
 
 - Apache Kafka (Exposed on <127.0.0.1:9094>)
 - AKHQ - an Apache Kafka UI (Exposed on <127.0.0.1:8084>)
-- MinIO (Exposed on <127.0.0.1:9000> and <127.0.0.1:9001> for the UI)
+- SeaweedFS (Exposed on 127.0.0.1:8333 for the UI)
 - mock-data-loader: used to pre-load Kafka with sample FHIR bundles
 
 start all services using
