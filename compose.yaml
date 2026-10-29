@@ -63,8 +63,10 @@ services:
       wait-for-kafka:
         condition: service_completed_successfully
 
-  minio:
-    image: docker.io/bitnamilegacy/minio:2025.7.23-debian-12-r3@sha256:953d489a81cc4de7975f90e07202189c4325da39b0b92470b6a13c7ea99e36cd
+  seaweedfs:
+    image: docker.io/chrislusf/seaweedfs:latest
+    user: "1000:1000"
+    command: [ "mini", "-dir=/data" ]
     cap_drop:
       - ALL
     privileged: false
@@ -72,56 +74,16 @@ services:
     security_opt:
       - "no-new-privileges:true"
     environment:
-      MINIO_UPDATE: "off"
-      MINIO_CALLHOME_ENABLE: "off"
-      MINIO_ROOT_USER: "admin"
-      MINIO_BROWSER: "on"
+      AWS_ACCESS_KEY_ID: "admin"
       # kics-scan ignore-line
-      MINIO_ROOT_PASSWORD: "miniopass" # gitleaks:allow
-      MINIO_SCHEME: "http"
+      AWS_SECRET_ACCESS_KEY: "seaweedpass" # gitleaks:allow
+      S3_BUCKET: "fhir"
     ports:
-      - "127.0.0.1:9001:9001"
-      - "127.0.0.1:9000:9000"
-
-  wait-for-minio:
-    image: docker.io/curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
-    ipc: none
-    security_opt:
-      - "no-new-privileges:true"
-    cap_drop:
-      - ALL
-    privileged: false
-    restart: "no"
-    environment:
-      AWS_ENDPOINT_URL: http://minio:9000
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        until [ "$(curl -s -o /dev/null -L -w "%{http_code}" "$$AWS_ENDPOINT_URL/minio/health/live")" == "200" ]; do
-            echo "$(date): Waiting for minio server @ $$AWS_ENDPOINT_URL to be up";
-            sleep 5;
-        done;
-    depends_on:
-      minio:
-        condition: service_started
-
-  createbucket:
-    image: docker.io/bitnamilegacy/minio:2025.7.23-debian-12-r3@sha256:953d489a81cc4de7975f90e07202189c4325da39b0b92470b6a13c7ea99e36cd
-    restart: on-failure
-    cap_drop:
-      - ALL
-    privileged: false
-    ipc: none
-    security_opt:
-      - "no-new-privileges:true"
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      - |
-        mc alias set minio http://minio:9000 admin miniopass;
-        mc mb --ignore-existing minio/fhir;
-    depends_on:
-      wait-for-minio:
-        condition: service_completed_successfully
+      - "127.0.0.1:8333:8333"
+      - "127.0.0.1:8888:8888"   # Filer UI
+      - "127.0.0.1:23646:23646" # Admin UI
+    volumes:
+      - seaweedfs-data:/data
 
   mock-data-loader:
     image: docker.io/confluentinc/cp-kafkacat:7.1.16@sha256:ce6f7079c7463572e62a8fbf0fa2af124e2687f679e64966081d6b339a604b10
@@ -131,7 +93,7 @@ services:
     cap_drop:
       - ALL
     privileged: false
-    entrypoint: ["/bin/bash", "-c"]
+    entrypoint: [ "/bin/bash", "-c" ]
     restart: on-failure
     # "while true; do kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson; sleep 60; done",
     command:
@@ -143,3 +105,5 @@ services:
     depends_on:
       wait-for-kafka:
         condition: service_completed_successfully
+volumes:
+  seaweedfs-data:

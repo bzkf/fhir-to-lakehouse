@@ -1,9 +1,9 @@
-CREATE SECRET minio_secret (
+CREATE SECRET seaweedfs_secret  (
      TYPE S3,
      KEY_ID 'admin',
-     SECRET 'miniopass',
+     SECRET 'seaweedpass',
      REGION 'us-east-1',
-     ENDPOINT 'localhost:30900',
+     ENDPOINT 'localhost:8333',
      USE_SSL false,
      URL_STYLE 'path'
 );

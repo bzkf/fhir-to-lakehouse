@@ -24,7 +24,7 @@ services:
         -Djavax.jdo.option.ConnectionUserName=hive
         -Djavax.jdo.option.ConnectionPassword=hive
       AWS_ACCESS_KEY_ID: "admin"
-      AWS_SECRET_ACCESS_KEY: "miniopass"
+      AWS_SECRET_ACCESS_KEY: "seaweedpass"
       AWS_DEFAULT_REGION: "eu-central-1"
     volumes:
       - $PWD/hack/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
@@ -43,7 +43,7 @@ services:
     restart: unless-stopped
     environment:
       AWS_ACCESS_KEY_ID: "admin"
-      AWS_SECRET_ACCESS_KEY: "miniopass"
+      AWS_SECRET_ACCESS_KEY: "seaweedpass"
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
@@ -51,4 +51,4 @@ services:
       - $PWD/hack/trino/catalog:/etc/trino/catalog:ro
     depends_on:
       - hive-metastore
-      - minio
+      - seaweedfs

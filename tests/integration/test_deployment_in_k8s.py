@@ -16,12 +16,12 @@ def test_deploy_to_k8s_should_create_delta_tables():
     )
 
     bundle = (
-        Path(HERE)
-        / ".."
-        / "unit"
-        / "fixtures"
-        / "resources"
-        / "put-100-patients.ndjson"
+            Path(HERE)
+            / ".."
+            / "unit"
+            / "fixtures"
+            / "resources"
+            / "put-100-patients.ndjson"
     ).read_text()
 
     for line in bundle.splitlines():
@@ -40,7 +40,7 @@ def test_deploy_to_k8s_should_create_delta_tables():
     condition_table_path = "s3://fhir/warehouse/Condition.parquet"
     storage_options = {
         "AWS_ACCESS_KEY_ID": "admin",
-        "AWS_SECRET_ACCESS_KEY": "miniopass",
+        "AWS_SECRET_ACCESS_KEY": "seaweedfs",
         "AWS_ENDPOINT_URL": "http://localhost:30900",
         "AWS_VIRTUAL_HOSTED_STYLE_REQUEST": "false",
         "ALLOW_HTTP": "true",
