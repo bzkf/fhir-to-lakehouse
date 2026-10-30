@@ -35,9 +35,49 @@ resources_processed_counter = meter.create_counter(
 delta_merge_rows_counter = meter.create_counter(
     name="delta-merge-rows",
     unit="{Count}",
-    description="Rows inserted, updated, or deleted in Delta Tables by MERGE, "
-    + "as reported by Delta",
+    description="Rows inserted, updated, deleted, or copied unchanged into new files "
+    + "in Delta Tables by MERGE, as reported by Delta",
 )
+
+delta_merge_phase_timer = meter.create_histogram(
+    name="delta-merge-phase-duration",
+    unit="s",
+    description="Duration of the phases of Delta MERGE operations, as reported by "
+    + "Delta: materialize_source (reading and encoding the batch), scan (finding "
+    + "the files with matching rows), and rewrite (writing the changed files)",
+    explicit_bucket_boundaries_advisory=DURATION_SECONDS_BUCKETS,
+)
+
+delta_merge_files_counter = meter.create_counter(
+    name="delta-merge-files",
+    unit="{Count}",
+    description="Files added to or removed from Delta Tables by MERGE",
+)
+
+delta_merge_bytes_counter = meter.create_counter(
+    name="delta-merge-bytes",
+    unit="By",
+    description="Bytes added to or removed from Delta Tables by MERGE",
+)
+
+delta_table_size_gauge = meter.create_gauge(
+    name="delta-table-size",
+    unit="By",
+    description="Size of the Delta Tables before the latest MERGE",
+)
+
+delta_table_files_gauge = meter.create_gauge(
+    name="delta-table-files",
+    unit="{Count}",
+    description="Number of files of the Delta Tables before the latest MERGE",
+)
+
+# the phases reported in the history of a MERGE, by the name they are exported with
+MERGE_PHASE_METRICS = {
+    "materialize_source": "materializeSourceTimeMs",
+    "scan": "scanTimeMs",
+    "rewrite": "rewriteTimeMs",
+}
 
 # added to the MERGE source to tell upserts and deletes apart. Not part of the
 # target table schema, so it is ignored by `whenMatchedUpdateAll` and
@@ -49,6 +89,9 @@ class BundleProcessor:
     def __init__(self, pc: PathlingContext, settings: Settings):
         self.pc = pc
         self.settings = settings
+        # table version of the latest MERGE whose history metrics were recorded,
+        # by resource type
+        self.last_recorded_merge_versions: dict[str, int] = {}
 
     def prepare_stream(self, df: DataFrame):
         fhir_bundle_schema = StructType(
@@ -261,10 +304,15 @@ class BundleProcessor:
 
         delta_table = delta_table_builder.execute()
 
-        logger.info(
-            "Table details: {details}",
-            details=delta_table.detail().toJSON().collect(),
-        )
+        table_details = delta_table.detail().first()
+        if table_details is not None:
+            logger.info("Table details: {details}", details=table_details.asDict())
+            delta_table_size_gauge.set(
+                table_details["sizeInBytes"], {"resource_type": resource_type}
+            )
+            delta_table_files_gauge.set(
+                table_details["numFiles"], {"resource_type": resource_type}
+            )
 
         # XXX: not necessary for every batch...
         if self.settings.metastore_url:
@@ -298,6 +346,13 @@ class BundleProcessor:
             self._merge_into_table(
                 merge_source_df, resource_type, delta_table, put_count, delete_count
             )
+
+        # outside of the retried `_merge_into_table`, so a failure to read the
+        # metrics never repeats the MERGE
+        try:
+            self._record_merge_history_metrics(delta_table, resource_type)
+        except Exception as e:
+            logger.warning("Failed to record the MERGE metrics: {e}", e=e)
 
         # TODO: should vacuum all tables, not just the ones in the batch
         if batch_id % self.settings.spark.upkeep_interval == 0:
@@ -350,6 +405,48 @@ class BundleProcessor:
         resources_processed_counter.add(
             delete_count, {"operation": "delete", "resource_type": resource_type}
         )
+
+    def _record_merge_history_metrics(
+        self, delta_table: DeltaTable, resource_type: str
+    ):
+        # the result of the MERGE only contains the row counts, everything else is
+        # only part of the table history. Each table is written by a single query,
+        # so the latest commit is the MERGE that just finished, unless it didn't
+        # commit at all.
+        commit = delta_table.history(1).first()
+        if (
+            commit is None
+            or commit["operation"] != "MERGE"
+            or self.last_recorded_merge_versions.get(resource_type) == commit["version"]
+        ):
+            return
+        self.last_recorded_merge_versions[resource_type] = commit["version"]
+
+        metrics = commit["operationMetrics"]
+        attributes = {"resource_type": resource_type}
+
+        for phase, key in MERGE_PHASE_METRICS.items():
+            if key in metrics:
+                delta_merge_phase_timer.record(
+                    int(metrics[key]) / 1000, {**attributes, "phase": phase}
+                )
+
+        # rows that weren't changed, but had to be written again because they are
+        # in the same file as a changed row
+        delta_merge_rows_counter.add(
+            int(metrics.get("numTargetRowsCopied", 0)),
+            {**attributes, "action": "copied"},
+        )
+
+        for action in ("added", "removed"):
+            delta_merge_files_counter.add(
+                int(metrics.get(f"numTargetFiles{action.capitalize()}", 0)),
+                {**attributes, "action": action},
+            )
+            delta_merge_bytes_counter.add(
+                int(metrics.get(f"numTargetBytes{action.capitalize()}", 0)),
+                {**attributes, "action": action},
+            )
 
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=10),
