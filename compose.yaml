@@ -93,7 +93,7 @@ services:
     cap_drop:
       - ALL
     privileged: false
-    entrypoint: [ "/bin/bash", "-c" ]
+    entrypoint: ["/bin/bash", "-c"]
     restart: on-failure
     # "while true; do kafkacat -X message.max.bytes=104857600 -b kafka:9092 -t fhir.msg -P -l /data/bundles.ndjson; sleep 60; done",
     command:
