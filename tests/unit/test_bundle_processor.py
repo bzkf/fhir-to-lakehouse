@@ -22,7 +22,7 @@ from testcontainers.core.container import DockerContainer
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
 seaweedfs = (
-    DockerContainer("docker.io/chrislusf/seaweedfs:latest")
+    DockerContainer("docker.io/chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8")
     .with_command("mini -dir=/data")
     .with_exposed_ports(8333)
     .with_env("AWS_ACCESS_KEY_ID", "admin")

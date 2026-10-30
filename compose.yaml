@@ -64,9 +64,9 @@ services:
         condition: service_completed_successfully
 
   seaweedfs:
-    image: docker.io/chrislusf/seaweedfs:latest
+    image: docker.io/chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8
     user: "1000:1000"
-    command: [ "mini", "-dir=/data" ]
+    command: ["mini", "-dir=/data"]
     cap_drop:
       - ALL
     privileged: false

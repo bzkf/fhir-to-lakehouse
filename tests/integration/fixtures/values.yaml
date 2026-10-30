@@ -78,6 +78,9 @@ seaweedfs:
 
     s3:
       enabled: true
+      createBuckets:
+        - name: fhir
+        - name: spark-streaming-checkpoints
 
     service:
       type: NodePort
