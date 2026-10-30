@@ -13,9 +13,9 @@ dependencies:
     repository: oci://ghcr.io/miracum/charts
     version: 1.11.4
     condition: stream-processors.enabled
-  - name: minio
-    repository: oci://registry-1.docker.io/bitnamicharts
-    version: 17.0.21
+  - name: seaweedfs
+    repository: https://seaweedfs.github.io/seaweedfs/helm
+    version: 4.51.0
   - name: akhq
     condition: akhq.enabled
     repository: https://akhq.io/

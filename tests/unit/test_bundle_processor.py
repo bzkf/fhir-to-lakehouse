@@ -7,7 +7,6 @@ from delta import DeltaTable
 from pathling import PathlingContext
 from pyspark.sql import SparkSession
 from pyspark.sql.types import BinaryType, StructField, StructType
-from testcontainers.minio import MinioContainer
 
 from bundle_processor import BundleProcessor
 from settings import (
@@ -18,32 +17,29 @@ from settings import (
     SparkSettings,
 )
 from spark_jars import with_jars
+from testcontainers.core.container import DockerContainer
 
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
-minio = MinioContainer(
-    "docker.io/bitnamilegacy/minio:2025.7.23-debian-12-r3"
-    + "@sha256:953d489a81cc4de7975f90e07202189c4325da39b0b92470b6a13c7ea99e36cd"
-).with_command("")
-
-
-minio.env["MINIO_UPDATE"] = "off"
-minio.env["MINIO_CALLHOME_ENABLE"] = "off"
-minio.env["MINIO_DEFAULT_BUCKETS"] = "test"
-minio.env["MINIO_SCHEME"] = "http"
-minio.env["MINIO_ROOT_USER"] = "admin"
-minio.env["MINIO_ROOT_PASSWORD"] = "miniopass"
-
+seaweedfs = (
+    DockerContainer("docker.io/chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8")
+    .with_command("mini -dir=/data")
+    .with_exposed_ports(8333)
+    .with_env("AWS_ACCESS_KEY_ID", "admin")
+    .with_env("AWS_SECRET_ACCESS_KEY", "seaweedpass")
+    .with_env("S3_BUCKET", "test")
+    .with_kwargs(user="1000:1000")
+)
 
 delta_spark_builder = ()
 
 
 @pytest.fixture(scope="session")
 def setup_s3(request):
-    minio.start()
+    seaweedfs.start()
 
     def remove_container():
-        minio.stop()
+        seaweedfs.stop()
 
     request.addfinalizer(remove_container)
 
@@ -64,12 +60,12 @@ def pathling_fixture(setup_s3):
         )
         .config(
             "spark.hadoop.fs.s3a.endpoint",
-            f"localhost:{minio.get_exposed_port(9000)}",
+            f"localhost:{seaweedfs.get_exposed_port(8333)}"
         )
         .config("fs.s3a.committer.name", "magic")
         .config("fs.s3a.committer.magic.enabled", "true")
-        .config("fs.s3a.access.key", minio.env["MINIO_ROOT_USER"])
-        .config("fs.s3a.secret.key", minio.env["MINIO_ROOT_PASSWORD"])
+        .config("fs.s3a.access.key", seaweedfs.env["AWS_ACCESS_KEY_ID"])
+        .config("fs.s3a.secret.key", seaweedfs.env["AWS_SECRET_ACCESS_KEY"])
         .config(
             "spark.hadoop.fs.s3a.connection.ssl.enabled",
             "false",
@@ -160,7 +156,7 @@ def test_delete_afer_insert_should_delete_row(pathling_fixture, tmp_path):
     assert dt.toDF().count() == 0
 
 
-def test_store_tables_in_minio(pathling_fixture):
+def test_store_tables_in_seaweedfs(pathling_fixture):
     put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
 
     settings = Settings(

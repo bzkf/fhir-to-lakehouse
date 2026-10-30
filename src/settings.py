@@ -30,7 +30,7 @@ class KafkaSettings:
 @ts.settings
 class SparkSettings:
     master: str = "local[*]"
-    s3_endpoint: str = "localhost:9000"
+    s3_endpoint: str = "localhost:8333"
     s3_connection_ssl_enabled: str = "false"
     warehouse_dir: str = os.path.join(HERE, "warehouse")
     checkpoint_dir: str = "s3a://fhir/checkpoint"
@@ -56,7 +56,7 @@ class Settings:
     spark: SparkSettings
     delta: DeltaSettings
     aws_access_key_id: str = "admin"
-    aws_secret_access_key: str = ts.secret(default="miniopass")
+    aws_secret_access_key: str = ts.secret(default="seaweedpass")
     delta_database_dir: str = "s3a://fhir/warehouse"
     vacuum_retention_hours: int = 24
     metrics_port: int = 8000

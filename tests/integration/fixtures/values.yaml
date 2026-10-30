@@ -31,7 +31,7 @@ stream-processors:
           tag: "test" # set in CI
           pullPolicy: IfNotPresent
         envDict:
-          SPARK_S3_ENDPOINT: fixtures-minio:9000
+          SPARK_S3_ENDPOINT: fixtures-seaweedfs-all-in-one:8333
           SPARK_CHECKPOINT_DIR: s3a://spark-streaming-checkpoints/fhir-to-delta
           DELTA_DATABASE_DIR: "s3a://fhir/warehouse"
           KAFKA_SSL_TRUSTSTORE_TYPE: PKCS12
@@ -40,13 +40,13 @@ stream-processors:
           - name: "AWS_ACCESS_KEY_ID"
             valueFrom:
               secretKeyRef:
-                name: "fixtures-minio"
-                key: "root-user"
+                name: "fixtures-seaweedfs-s3-secret"
+                key: "admin_access_key_id"
           - name: "AWS_SECRET_ACCESS_KEY"
             valueFrom:
               secretKeyRef:
-                name: "fixtures-minio"
-                key: "root-password"
+                name: "fixtures-seaweedfs-s3-secret"
+                key: "admin_secret_access_key"
         extraVolumeMounts:
           - name: spark-conf
             mountPath: /app/spark/conf
@@ -56,20 +56,36 @@ stream-processors:
           configMap:
             name: "fixtures-spark-defaults-conf"
 
-minio:
-  image:
-    repository: bitnamilegacy/minio
-  console:
-    image:
-      repository: bitnamilegacy/minio-object-browser
-  defaultBuckets: "spark-streaming-checkpoints,fhir"
-  auth:
-    rootUser: "admin"
-    rootPassword: "miniopass"
-  service:
-    type: NodePort
-    nodePorts:
-      api: "30900"
+seaweedfs:
+  master:
+    enabled: false
+  volume:
+    enabled: false
+  filer:
+    enabled: false
+
+  s3:
+    enabled: false
+    enableAuth: true
+    credentials:
+      admin:
+        accessKey: "admin"
+        secretKey: "seaweedfs"
+
+  allInOne:
+    enabled: true
+    replicas: 1
+
+    s3:
+      enabled: true
+      createBuckets:
+        - name: fhir
+        - name: spark-streaming-checkpoints
+
+    service:
+      type: NodePort
+      nodePorts:
+        s3: 30900
 
 akhq:
   enabled: false
