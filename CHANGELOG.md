@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.16.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.15.0...v1.16.0) (2026-10-30)
+
+
+### Features
+
+* replace minio with seaweedfs ([#224](https://github.com/bzkf/fhir-to-lakehouse/issues/224)) ([e0aa056](https://github.com/bzkf/fhir-to-lakehouse/commit/e0aa056542d8af25514774216251a6971f564f1a))
+* track rewrite row counts ([#222](https://github.com/bzkf/fhir-to-lakehouse/issues/222)) ([77a20a2](https://github.com/bzkf/fhir-to-lakehouse/commit/77a20a2b7d331bcbea14405be02f91a0ca54440a))
+
+
+### Documentation
+
+* added progress per topic to dashboard ([#220](https://github.com/bzkf/fhir-to-lakehouse/issues/220)) ([f6dfcaf](https://github.com/bzkf/fhir-to-lakehouse/commit/f6dfcaf6debea0b4cfc19b0feb44fc6b2acd6016))
+
 ## [1.15.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.14.2...v1.15.0) (2026-10-22)
 
 
