@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.1](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.16.0...v1.16.1) (2026-11-02)
+
+
+### Build
+
+* **deps:** bump certifi from 2026.2.25 to 2026.10.18 ([#225](https://github.com/bzkf/fhir-to-lakehouse/issues/225)) ([d475cc3](https://github.com/bzkf/fhir-to-lakehouse/commit/d475cc34b71b8d243dd74a093deeb0d7e42f430e))
+
 ## [1.16.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.15.0...v1.16.0) (2026-10-30)
 
 
