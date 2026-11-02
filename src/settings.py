@@ -4,6 +4,11 @@ import typed_settings as ts
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
+# the latest Kafka message timestamp of the micro-batch that last inserted or updated
+# a row. Stored in every table to cluster recently written rows together, so a MERGE
+# that updates them only rewrites a few files.
+KAFKA_BATCH_TIMESTAMP_COLUMN = "_kafka_batch_timestamp"
+
 
 @ts.settings
 class KafkaSslSettings:
@@ -48,6 +53,12 @@ class DeltaSettings:
     checkpoint_write_stats_as_json: str = "false"
     checkpoint_write_stats_as_struct: str = "true"
     clustering_columns_by_resource_type: dict[str, list[str]] = {}
+    # used for all resource types without an entry in
+    # `clustering_columns_by_resource_type`
+    default_clustering_columns: list[str] = [KAFKA_BATCH_TIMESTAMP_COLUMN]
+    # if enabled, also changes the clustering columns of existing tables to the
+    # configured ones. Otherwise, they are only used when creating a table.
+    apply_clustering_to_existing_tables: bool = False
 
 
 @ts.settings
