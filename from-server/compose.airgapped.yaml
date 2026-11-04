@@ -1,0 +1,8 @@
+# Cuts the stack off from the internet to verify that nothing is downloaded at runtime:
+#   export COMPOSE_FILE=compose.yaml:compose.airgapped.yaml
+# The images have to be pulled beforehand, using `docker compose --profile steps pull`.
+networks:
+  default:
+    internal: true
+  trino:
+    internal: true

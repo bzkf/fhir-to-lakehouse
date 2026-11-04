@@ -1,0 +1,260 @@
+# kics-scan ignore
+# Generates synthetic patients, loads them into Blaze, and incrementally exports them as Delta Lake
+# tables to SeaweedFS, registered in a Hive metastore and queryable with Trino. `docker compose up`
+# only starts the long-running services. The steps in the "steps" profile are run one at a time using
+# `docker compose run`, see the README.
+name: analytics-on-fhir
+
+x-hardening: &hardening
+  ipc: none
+  security_opt:
+    - "no-new-privileges:true"
+  cap_drop:
+    - ALL
+  privileged: false
+
+x-s3-credentials: &s3-credentials
+  AWS_ACCESS_KEY_ID: "admin"
+  # kics-scan ignore-line
+  AWS_SECRET_ACCESS_KEY: "seaweedpass" # gitleaks:allow
+  AWS_REGION: "us-east-1"
+
+# contains Synthea, blazectl, and the Pathling CLI, including the S3A filesystem. Its entrypoint
+# is bash. The steps using it run as the image's nonroot user.
+x-ig-build-tools: &ig-build-tools
+  image: ghcr.io/miracum/ig-build-tools:v2.6.0@sha256:757c62da7fdee861a0cfe39e138f1f1dce8b359c31fd1906697369db1bb9d3f6
+  user: "65532:65532"
+
+services:
+  blaze:
+    image: docker.io/samply/blaze:1.13.0@sha256:808d04a6224ca926ab2422d4235cd008399b5e4d4f5855d52fd2715de295f1c2
+    <<: *hardening
+    restart: unless-stopped
+    environment:
+      # the URL the other services use, as blazectl follows the paging links Blaze returns
+      BASE_URL: "http://blaze:8080"
+      JAVA_TOOL_OPTIONS: "-Xmx2g"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - blaze-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  seaweedfs:
+    image: docker.io/chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8
+    <<: *hardening
+    restart: unless-stopped
+    user: "1000:1000"
+    command: ["mini", "-dir=/data"]
+    environment:
+      <<: *s3-credentials
+      S3_BUCKET: "fhir"
+    ports:
+      - "127.0.0.1:8333:8333" # S3 API
+      - "127.0.0.1:8888:8888" # Filer UI
+      - "127.0.0.1:23646:23646" # Admin UI
+    volumes:
+      - seaweedfs-data:/data
+    healthcheck:
+      # healthy once the bucket has been created
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/buckets/fhir/"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  metastore-db:
+    image: docker.io/library/postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: hive
+      POSTGRES_DB: metastore
+    volumes:
+      - metastore-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "hive", "-d", "metastore"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  hive-metastore:
+    image: ghcr.io/miracum/util-images/hive-metastore:v1.4.3@sha256:91f6a16a2d80911f5cf1e411bb36590df763269f3ff1efbff4f811eb63d56483
+    <<: *hardening
+    restart: unless-stopped
+    environment:
+      <<: *s3-credentials
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      SERVICE_OPTS: >-
+        -Djavax.jdo.option.ConnectionUserName=hive
+        -Djavax.jdo.option.ConnectionPassword=hive
+      S3_ENDPOINT_URL: "http://seaweedfs:8333"
+      DEFAULT_FS: "s3a://fhir"
+      HIVE_WAREHOUSE_PATH: "/metastore"
+    volumes:
+      - ./config/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/9083"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+    depends_on:
+      metastore-db:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+
+  # SQL query engine for the tables registered in the Hive metastore, see the README
+  trino:
+    image: docker.io/trinodb/trino:484@sha256:2704eb53935af5e582d63d6033e9bf99d20c325e9b0e30b1016ef59a4773979f
+    <<: *hardening
+    restart: unless-stopped
+    # the image's jvm.config sets the heap to 80% of this
+    mem_limit: 3g
+    environment:
+      <<: *s3-credentials
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      # replaces the image's example catalogs, so only the tables are listed
+      - ./config/trino/catalog:/etc/trino/catalog:ro
+      - ./config/trino/access-control.properties:/etc/trino/access-control.properties:ro
+    networks:
+      - default
+      - trino
+    depends_on:
+      hive-metastore:
+        condition: service_healthy
+
+  # the volume is root-owned when created, but all steps run as an unprivileged user
+  init-data:
+    image: docker.io/library/alpine:3.22@sha256:2e0b81d60597f449baa56dc25d355367869d2dca4cd57e866f1e2b52af3eb55f
+    <<: *hardening
+    profiles: [steps]
+    cap_add:
+      - CHOWN
+    user: "0:0"
+    command: ["chown", "65532:65532", "/data"]
+    volumes:
+      - pipeline-data:/data
+
+  # demo data phase
+
+  synthea:
+    <<: [*hardening, *ig-build-tools]
+    profiles: [steps]
+    entrypoint: ["/bin/bash", "-ec"]
+    # the patients reference the organizations and practitioners, so their bundles are moved
+    # to their own folder to upload them first
+    command:
+      - |
+        rm -rf /data/synthea
+        java -jar /usr/local/bin/synthea.jar -p ${SYNTHEA_POPULATION:-100} --exporter.baseDirectory=/data/synthea
+        mkdir /data/synthea/providers
+        mv /data/synthea/fhir/hospitalInformation*.json /data/synthea/fhir/practitionerInformation*.json \
+          /data/synthea/providers/
+    volumes:
+      - pipeline-data:/data
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+
+  upload:
+    <<: [*hardening, *ig-build-tools]
+    profiles: [steps]
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        blazectl upload --no-progress --server http://blaze:8080/fhir /data/synthea/providers
+        blazectl upload --no-progress --server http://blaze:8080/fhir --concurrency 4 /data/synthea/fhir
+    volumes:
+      - pipeline-data:/data
+    depends_on:
+      blaze:
+        condition: service_healthy
+
+  # usage phase
+
+  download:
+    <<: [*hardening, *ig-build-tools]
+    profiles: [steps]
+    command: ["/scripts/download.sh"]
+    environment:
+      <<: *s3-credentials
+    volumes:
+      - pipeline-data:/data
+      - ./scripts:/scripts:ro
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+      blaze:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+
+  # merges the downloaded resources into the Delta Lake tables by id. `pathling convert` can't be
+  # used for this, as it mangles s3a:// paths, see pathling-cli-remote-paths-issue.md.
+  convert:
+    <<: [*hardening, *ig-build-tools]
+    profiles: [steps]
+    entrypoint: ["pathling", "--config", "/etc/pathling/pathling.toml", "run"]
+    command: ["-c", "pc.read.ndjson('/data/ndjson').write.delta('s3a://fhir/warehouse', save_mode='merge')"]
+    environment:
+      <<: *s3-credentials
+    volumes:
+      - pipeline-data:/data
+      - ./config/pathling.toml:/etc/pathling/pathling.toml:ro
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+
+  lakehousekeeper:
+    image: ghcr.io/bzkf/fhir-to-lakehouse:v1.16.0@sha256:0e1e6f42dae70e4470a50b5218e7ce35008613acca13d1e1e96e56b82ccf6b68
+    <<: *hardening
+    profiles: [steps]
+    entrypoint: ["/bin/sh", "-ec"]
+    # registers the tables as warehouse.<ResourceType>
+    command:
+      - |
+        python3 src/lakehousekeeper.py register --bucket-name=fhir --database-name-prefix=warehouse/ \
+          --hive-metastore=thrift://hive-metastore:9083
+        python3 src/lakehousekeeper.py optimize --bucket-name=fhir --database-name-prefix=warehouse/
+        python3 src/lakehousekeeper.py vacuum --bucket-name=fhir --database-name-prefix=warehouse/ \
+          --dry-run=false
+    environment:
+      <<: *s3-credentials
+      AWS_ENDPOINT_URL: "http://seaweedfs:8333"
+      AWS_ALLOW_HTTP: "true"
+    depends_on:
+      hive-metastore:
+        condition: service_healthy
+
+  query:
+    <<: [*hardening, *ig-build-tools]
+    profiles: [steps]
+    entrypoint: ["pathling", "--config", "/etc/pathling/pathling.toml", "run"]
+    command: ["/scripts/query.py"]
+    environment:
+      <<: *s3-credentials
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./config/pathling.toml:/etc/pathling/pathling.toml:ro
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+
+networks:
+  default:
+  # lets the agent in agent/ query Trino without access to the other services
+  trino:
+    name: analytics-on-fhir-trino
+
+volumes:
+  blaze-data:
+  seaweedfs-data:
+  metastore-db-data:
+  pipeline-data:

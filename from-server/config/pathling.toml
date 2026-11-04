@@ -1,0 +1,6 @@
+# Pathling CLI configuration, see <https://pathling.csiro.au/docs/libraries/cli/configuration>.
+# The S3 credentials and region are read from the AWS_* environment variables.
+[spark]
+"spark.driver.memory" = "4g"
+"spark.hadoop.fs.s3a.endpoint" = "http://seaweedfs:8333"
+"spark.hadoop.fs.s3a.path.style.access" = "true"
