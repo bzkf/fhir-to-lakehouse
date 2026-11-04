@@ -31,7 +31,7 @@ services:
     <<: *hardening
     restart: unless-stopped
     environment:
-      # the URL the other services use, as blazectl follows the paging links Blaze returns
+      # the URL the other services use, as import follows the paging links Blaze returns
       BASE_URL: "http://blaze:8080"
       JAVA_TOOL_OPTIONS: "-Xmx2g"
     ports:
@@ -179,36 +179,25 @@ services:
 
   # usage phase
 
-  download:
+  # downloads the resources changed since the last run in batches, and merges each batch into the
+  # Delta Lake tables by id before downloading the next one
+  import:
     <<: [*hardening, *ig-build-tools]
     profiles: [steps]
-    command: ["/scripts/download.sh"]
+    command: ["/scripts/import.sh"]
     environment:
       <<: *s3-credentials
+      # the number of resources stored in /data/ndjson at a time
+      BATCH_SIZE: "${BATCH_SIZE:-1000000}"
     volumes:
       - pipeline-data:/data
       - ./scripts:/scripts:ro
+      - ./config/pathling.toml:/etc/pathling/pathling.toml:ro
     depends_on:
       init-data:
         condition: service_completed_successfully
       blaze:
         condition: service_healthy
-      seaweedfs:
-        condition: service_healthy
-
-  # merges the downloaded resources into the Delta Lake tables by id. `pathling convert` can't be
-  # used for this, as it mangles s3a:// paths, see pathling-cli-remote-paths-issue.md.
-  convert:
-    <<: [*hardening, *ig-build-tools]
-    profiles: [steps]
-    entrypoint: ["pathling", "--config", "/etc/pathling/pathling.toml", "run"]
-    command: ["-c", "pc.read.ndjson('/data/ndjson').write.delta('s3a://fhir/warehouse', save_mode='merge')"]
-    environment:
-      <<: *s3-credentials
-    volumes:
-      - pipeline-data:/data
-      - ./config/pathling.toml:/etc/pathling/pathling.toml:ro
-    depends_on:
       seaweedfs:
         condition: service_healthy
 

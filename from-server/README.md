@@ -17,14 +17,13 @@ WrenAI as a semantic layer for the tables.
 
 The steps of the pipeline are run one at a time, in two phases:
 
-| Phase     | Step              | What it does                                                                                                                                                                                |
-| --------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Demo data | `synthea`         | Generates 100 patients as transaction bundles using [Synthea](https://github.com/synthetichealth/synthea)                                                                                   |
-| Demo data | `upload`          | Uploads the bundles to Blaze using [blazectl](https://github.com/samply/blazectl)                                                                                                           |
-| Usage     | `download`        | Downloads the resources changed since the last download from Blaze, as one NDJSON file per resource type, using blazectl                                                                    |
-| Usage     | `convert`         | Merges the NDJSON files into Delta Lake tables at `s3a://fhir/warehouse/<ResourceType>.parquet`, using the [Pathling CLI](https://pathling.csiro.au/docs/libraries/cli)                     |
-| Usage     | `lakehousekeeper` | Registers the tables in the Hive metastore as `warehouse.<ResourceType>`, then runs OPTIMIZE and VACUUM, using [lakehousekeeper](https://github.com/bzkf/fhir-to-lakehouse#lakehousekeeper) |
-| Usage     | `query`           | Runs the example query in [scripts/query.py](scripts/query.py) against the Delta Lake tables, using the Pathling CLI                                                                        |
+| Phase     | Step              | What it does                                                                                                                                                                                                                                                                                 |
+| --------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Demo data | `synthea`         | Generates 100 patients as transaction bundles using [Synthea](https://github.com/synthetichealth/synthea)                                                                                                                                                                                    |
+| Demo data | `upload`          | Uploads the bundles to Blaze using [blazectl](https://github.com/samply/blazectl)                                                                                                                                                                                                            |
+| Usage     | `import`          | Downloads the resources changed since the last run from Blaze in batches of 1 million, and merges each batch into Delta Lake tables at `s3a://fhir/warehouse/<ResourceType>.parquet` before downloading the next one, using the [Pathling CLI](https://pathling.csiro.au/docs/libraries/cli) |
+| Usage     | `lakehousekeeper` | Registers the tables in the Hive metastore as `warehouse.<ResourceType>`, then runs OPTIMIZE and VACUUM, using [lakehousekeeper](https://github.com/bzkf/fhir-to-lakehouse#lakehousekeeper)                                                                                                  |
+| Usage     | `query`           | Runs the example query in [scripts/query.py](scripts/query.py) against the Delta Lake tables, using the Pathling CLI                                                                                                                                                                         |
 
 All steps except `lakehousekeeper` use the [ig-build-tools](https://github.com/miracum/ig-build-tools)
 image, which contains Synthea, blazectl, and the Pathling CLI. They run as its unprivileged
@@ -50,8 +49,7 @@ The usage phase exports the new and changed resources from Blaze into the lakeho
 it, which takes about 3 minutes the first time:
 
 ```sh
-docker compose run --rm download
-docker compose run --rm convert
+docker compose run --rm import
 docker compose run --rm lakehousekeeper
 docker compose run --rm query
 ```
@@ -105,7 +103,7 @@ docker compose exec trino trino --output-format ALIGNED --execute "
 
 The tables have one column per element of the resource, in lower case, with nested `row` and
 `array` types, as encoded by Pathling. Trino reads the latest version of the tables with each
-query, so changes from `convert` are visible right away. Only new resource types need
+query, so changes from `import` are visible right away. Only new resource types need
 `lakehousekeeper` to run again. Trino only allows reading, see
 [access-control.properties](config/trino/access-control.properties).
 
@@ -114,9 +112,9 @@ for logging in.
 
 ### Running the phases again
 
-The usage phase only processes what changed since its last run: `download` searches Blaze for
-`_lastUpdated=ge<start of the last download>`, and `convert` merges the results into the tables
-by resource id. The start of the last download is stored as a checkpoint in S3, at
+The usage phase only processes what changed since its last run: `import` searches Blaze for
+`_lastUpdated=ge<start of the last download>`, and merges the results into the tables by
+resource id. The start of the last download is stored as a checkpoint in S3, at
 `s3://fhir/checkpoints/_last-download-checkpoint.json`:
 
 ```json
@@ -124,6 +122,20 @@ by resource id. The start of the last download is stored as a checkpoint in S3, 
   "lastDownloadStartedAt": "2026-11-01T14:55:01Z"
 }
 ```
+
+To limit the disk space used, `import` downloads the resources in batches. It follows the
+search's pages of 1000 resources, appending them to one NDJSON file per resource type, until the
+batch has at least `BATCH_SIZE` resources, 1 million by default. It then merges the batch into
+the tables, deletes the files, and continues with the next page. To use smaller batches, set
+`BATCH_SIZE`:
+
+```sh
+BATCH_SIZE=100000 docker compose run --rm import
+```
+
+The checkpoint is only written once the last batch is merged. If `import` fails, running it again
+starts over from the previous checkpoint, merging the batches that already succeeded again, which
+doesn't change the tables.
 
 Running the demo data phase again adds new patients to Blaze, so the next run of the usage phase
 only downloads those. To generate fewer patients, set `SYNTHEA_POPULATION`:
@@ -166,7 +178,7 @@ The steps exchange files using the `pipeline-data` volume:
 ```text
 /data/synthea/fhir/           patient bundles of the last demo data phase
 /data/synthea/providers/      organization and practitioner bundles, uploaded first
-/data/ndjson/<Type>.ndjson    resources changed since the previous download
+/data/ndjson/<Type>.ndjson    the batch of resources that import is downloading
 ```
 
 The `fhir` bucket in S3 contains:
@@ -185,6 +197,8 @@ checkpoints/_last-download-checkpoint.json    start time of the last download
   encode them, so there's no table for them.
 - VACUUM uses the default retention of 7 days, so it only deletes files that were removed
   from the tables more than a week ago.
-- `convert` and `query` use `pathling run` instead of `pathling convert` and `pathling view`,
+- Blaze's paging links expire after 4 hours without a request, so merging a batch has to take
+  less than that.
+- `import` and `query` use `pathling run` instead of `pathling convert` and `pathling view`,
   because the CLI corrupts `s3a://` paths. See
   [pathling-cli-remote-paths-issue.md](pathling-cli-remote-paths-issue.md).
