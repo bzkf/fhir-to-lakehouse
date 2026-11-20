@@ -93,16 +93,16 @@ from the target size.
 [compose.lakekeeper.yaml](compose.lakekeeper.yaml) adds a [Lakekeeper](https://docs.lakekeeper.io/) REST catalog
 (plus its Postgres metadata store) to the dev fixtures, for testing `iceberg.catalog_type = "rest"` against
 something closer to a production catalog than the default Hadoop catalog. It runs without authentication, matching
-this project's other dev fixtures (Kafka, MinIO) - don't reuse it as-is for anything but local dev.
+this project's other dev fixtures (Kafka, SeaweedFS) - don't reuse it as-is for anything but local dev.
 
-Start it together with the base fixtures ([compose.yaml](compose.yaml), for Kafka/MinIO):
+Start it together with the base fixtures ([compose.yaml](compose.yaml), for Kafka/SeaweedFS):
 
 ```sh
 docker compose -f compose.yaml -f compose.lakekeeper.yaml up
 ```
 
 This also runs two one-shot containers that call Lakekeeper's management API to bootstrap it and register a
-warehouse named `fhir` backed by the same MinIO bucket the Hadoop catalog uses
+warehouse named `fhir` backed by the same SeaweedFS bucket the Hadoop catalog uses
 (storage config in [hack/lakekeeper/create-fhir-warehouse.json](hack/lakekeeper/create-fhir-warehouse.json)).
 Lakekeeper's REST API is then reachable at <http://localhost:8181>.
 
