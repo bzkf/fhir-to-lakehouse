@@ -1,0 +1,19 @@
+{
+  "warehouse-name": "fhir",
+  "storage-profile": {
+    "type": "s3",
+    "bucket": "fhir",
+    "key-prefix": "warehouse-iceberg",
+    "endpoint": "http://seaweedfs:8333",
+    "region": "us-east-1",
+    "path-style-access": true,
+    "flavor": "s3-compat",
+    "sts-enabled": false
+  },
+  "storage-credential": {
+    "type": "s3",
+    "credential-type": "access-key",
+    "access-key-id": "admin",
+    "secret-access-key": "seaweedpass"
+  }
+}

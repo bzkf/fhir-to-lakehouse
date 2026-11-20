@@ -1229,7 +1229,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le, operation, resource_type) (rate(delta_operation_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, operation, resource_type) (rate(table_operation_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"}[$__rate_interval])))",
           "legendFormat": "{{resource_type}} {{operation}}",
           "refId": "A",
           "range": true
@@ -1291,7 +1291,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (operation, resource_type) (rate(delta_operation_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"}[$__rate_interval])) * 60",
+          "expr": "sum by (operation, resource_type) (rate(table_operation_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", resource_type=~\"$resource_type\"}[$__rate_interval])) * 60",
           "legendFormat": "{{resource_type}} {{operation}}",
           "refId": "A",
           "range": true
