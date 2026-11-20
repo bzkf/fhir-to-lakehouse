@@ -49,6 +49,24 @@ spark_builder = (
 )
 
 
+# delta-rs can read tables with these features, but refuses to write to them, which
+# includes the commits of VACUUM and OPTIMIZE. Liquid clustering requires both.
+DELTA_RS_UNSUPPORTED_WRITER_FEATURES = {"clustering", "domainMetadata"}
+
+
+def can_write_with_delta_rs(dt: DeltaTable) -> bool:
+    unsupported_features = DELTA_RS_UNSUPPORTED_WRITER_FEATURES.intersection(
+        dt.protocol().writer_features or []
+    )
+    if unsupported_features:
+        logger.info(
+            "delta-rs doesn't support writing to tables with the features "
+            + "{features}, using the Spark SQL implementation instead",
+            features=sorted(unsupported_features),
+        )
+    return not unsupported_features
+
+
 def list_tables(bucket_name: str, prefix: str) -> Iterator[DeltaTable]:
     delimiter = "/"
 
@@ -132,7 +150,8 @@ def cli():
     "--use-delta-rs",
     default=True,
     type=click.BOOL,
-    help="if enabled, use the delta-rs vacuum implementation",
+    help="if enabled, use the delta-rs vacuum implementation. Tables that delta-rs "
+    + "can't write to, e.g. liquid clustered ones, always use Spark SQL.",
 )
 def vacuum(
     bucket_name: str,
@@ -156,7 +175,7 @@ def vacuum(
             "VACUUMing '{table}' {metadata}", table=dt.table_uri, metadata=dt.metadata()
         )
 
-        if use_delta_rs:
+        if use_delta_rs and can_write_with_delta_rs(dt):
             logger.info("Using delta-rs implementation")
             vacuumed_files = dt.vacuum(
                 enforce_retention_duration=enforce_retention_duration,
@@ -204,7 +223,9 @@ def vacuum(
     "--use-delta-rs",
     default=True,
     type=click.BOOL,
-    help="if enabled, use the delta-rs optimize implementation",
+    help="if enabled, use the delta-rs optimize implementation. Tables that delta-rs "
+    + "can't write to, e.g. liquid clustered ones, always use Spark SQL, which also "
+    + "clusters them.",
 )
 def optimize(
     bucket_name: str,
@@ -232,7 +253,7 @@ def optimize(
             metadata=dt.metadata(),
         )
 
-        if use_delta_rs:
+        if use_delta_rs and can_write_with_delta_rs(dt):
             logger.info("Using delta-rs implementation")
             metrics = dt.optimize.compact(writer_properties=wp)
             logger.info(metrics)
