@@ -64,14 +64,18 @@ delta_merge_bytes_counter = meter.create_counter(
 delta_table_size_gauge = meter.create_gauge(
     name="delta-table-size",
     unit="By",
-    description="Size of the Delta Tables before the latest MERGE",
+    description="Size of the Delta Tables after the latest MERGE",
 )
 
 delta_table_files_gauge = meter.create_gauge(
     name="delta-table-files",
     unit="{Count}",
-    description="Number of files of the Delta Tables before the latest MERGE",
+    description="Number of files of the Delta Tables after the latest MERGE",
 )
+
+# how many commits by other operations, e.g. auto compaction or the
+# lakehousekeeper, may follow a MERGE before its metrics are no longer found
+MAX_COMMITS_AFTER_MERGE = 10
 
 # the phases reported in the history of a MERGE, by the name they are exported with
 MERGE_PHASE_METRICS = {
@@ -90,9 +94,6 @@ class BundleProcessor:
     def __init__(self, pc: PathlingContext, settings: Settings):
         self.pc = pc
         self.settings = settings
-        # table version of the latest MERGE whose history metrics were recorded,
-        # by resource type
-        self.last_recorded_merge_versions: dict[str, int] = {}
 
     def prepare_stream(self, df: DataFrame):
         fhir_bundle_schema = StructType(
@@ -329,23 +330,13 @@ class BundleProcessor:
             # change
             delta_table = DeltaTable.forPath(self.pc.spark, resource_delta_table_path)
 
-        table_details = delta_table.detail().first()
-        if table_details is not None:
-            logger.info("Table details: {details}", details=table_details.asDict())
-            delta_table_size_gauge.set(
-                table_details["sizeInBytes"], {"resource_type": resource_type}
-            )
-            delta_table_files_gauge.set(
-                table_details["numFiles"], {"resource_type": resource_type}
-            )
-
-            # the clustering columns passed when creating a table are ignored if it
-            # already exists
-            if (
-                self.settings.delta.apply_clustering_to_existing_tables
-                and cluster_columns
-                and list(table_details["clusteringColumns"]) != list(cluster_columns)
-            ):
+        # the clustering columns passed when creating a table are ignored if it
+        # already exists
+        if self.settings.delta.apply_clustering_to_existing_tables and cluster_columns:
+            table_details = delta_table.detail().first()
+            if table_details is not None and list(
+                table_details["clusteringColumns"]
+            ) != list(cluster_columns):
                 self._change_clustering_columns(
                     resource_delta_table_path, cluster_columns
                 )
@@ -377,6 +368,10 @@ class BundleProcessor:
                 delete_df, allowMissingColumns=True
             )
 
+        # to find this MERGE's commit in the history afterwards, even if other
+        # commits, e.g. by auto compaction or the lakehousekeeper, follow it
+        version_before_merge = self._get_table_version(delta_table)
+
         with MeasureElapsed(
             delta_operations_timer,
             {"operation": "merge", "resource_type": resource_type},
@@ -387,14 +382,21 @@ class BundleProcessor:
 
         # outside of the retried `_merge_into_table`, so a failure to read the
         # metrics never repeats the MERGE
-        try:
-            self._record_merge_history_metrics(delta_table, resource_type)
-        except Exception as e:
-            logger.warning("Failed to record the MERGE metrics: {e}", e=e)
+        if version_before_merge is not None:
+            try:
+                self._record_merge_history_metrics(
+                    delta_table, resource_type, version_before_merge
+                )
+            except Exception as e:
+                logger.warning("Failed to record the MERGE metrics: {e}", e=e)
 
         # TODO: should vacuum all tables, not just the ones in the batch
         if batch_id % self.settings.spark.upkeep_interval == 0:
             self._optimize_and_vacuum_table(delta_table, resource_type=resource_type)
+
+        # after the MERGE and the upkeep, so the gauges show the current table even
+        # if no further batch follows
+        self._record_table_details(delta_table, resource_type)
 
     @retry(
         wait=wait_exponential(multiplier=1, min=5, max=30),
@@ -444,21 +446,50 @@ class BundleProcessor:
             delete_count, {"operation": "delete", "resource_type": resource_type}
         )
 
+    def _get_table_version(self, delta_table: DeltaTable) -> int | None:
+        try:
+            commit = delta_table.history(1).first()
+        except Exception as e:
+            logger.warning("Failed to read the table version: {e}", e=e)
+            return None
+        return None if commit is None else commit["version"]
+
+    def _record_table_details(self, delta_table: DeltaTable, resource_type: str):
+        try:
+            table_details = delta_table.detail().first()
+        except Exception as e:
+            logger.warning("Failed to read the table details: {e}", e=e)
+            return
+        if table_details is None:
+            return
+
+        logger.info("Table details: {details}", details=table_details.asDict())
+        delta_table_size_gauge.set(
+            table_details["sizeInBytes"], {"resource_type": resource_type}
+        )
+        delta_table_files_gauge.set(
+            table_details["numFiles"], {"resource_type": resource_type}
+        )
+
     def _record_merge_history_metrics(
-        self, delta_table: DeltaTable, resource_type: str
+        self, delta_table: DeltaTable, resource_type: str, version_before_merge: int
     ):
         # the result of the MERGE only contains the row counts, everything else is
         # only part of the table history. Each table is written by a single query,
-        # so the latest commit is the MERGE that just finished, unless it didn't
-        # commit at all.
-        commit = delta_table.history(1).first()
-        if (
-            commit is None
-            or commit["operation"] != "MERGE"
-            or self.last_recorded_merge_versions.get(resource_type) == commit["version"]
-        ):
+        # so the only MERGE after `version_before_merge` is the one that just
+        # finished. There is none if it didn't commit at all. Other operations,
+        # e.g. auto compaction or the lakehousekeeper, may have committed after it.
+        commit = (
+            delta_table.history(MAX_COMMITS_AFTER_MERGE + 1)
+            .filter(
+                (F.col("version") > version_before_merge)
+                & (F.col("operation") == "MERGE")
+            )
+            .orderBy(F.col("version").desc())
+            .first()
+        )
+        if commit is None:
             return
-        self.last_recorded_merge_versions[resource_type] = commit["version"]
 
         metrics = commit["operationMetrics"]
         attributes = {"resource_type": resource_type}

@@ -9,6 +9,7 @@ from pathling import PathlingContext
 from pyspark.sql import SparkSession
 from pyspark.sql.types import BinaryType, StructField, StructType
 
+import bundle_processor
 from bundle_processor import BundleProcessor
 from settings import (
     KAFKA_BATCH_TIMESTAMP_COLUMN,
@@ -24,7 +25,9 @@ from testcontainers.core.container import DockerContainer
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
 seaweedfs = (
-    DockerContainer("docker.io/chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8")
+    DockerContainer(
+        "docker.io/chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8"
+    )
     .with_command("mini -dir=/data")
     .with_exposed_ports(8333)
     .with_env("AWS_ACCESS_KEY_ID", "admin")
@@ -62,7 +65,7 @@ def pathling_fixture(setup_s3):
         )
         .config(
             "spark.hadoop.fs.s3a.endpoint",
-            f"localhost:{seaweedfs.get_exposed_port(8333)}"
+            f"localhost:{seaweedfs.get_exposed_port(8333)}",
         )
         .config("fs.s3a.committer.name", "magic")
         .config("fs.s3a.committer.magic.enabled", "true")
@@ -497,3 +500,57 @@ def test_existing_table_should_get_kafka_batch_timestamp_column(
     details = dt.detail().first()
     assert details is not None
     assert details["clusteringColumns"] == [KAFKA_BATCH_TIMESTAMP_COLUMN]
+
+
+def test_merge_metrics_should_be_found_after_later_commits(
+    pathling_fixture, tmp_path, monkeypatch
+):
+    put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
+    data = {
+        "key": "key",
+        "value": put_bundle,
+        "timestamp": datetime.datetime.now(),
+        "partition": 0,
+        "offset": 0,
+    }
+
+    d = tmp_path / "warehouse" / "data"
+    settings = Settings(
+        delta_database_dir=d.as_posix(),
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+    )
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+    # a batch_id that doesn't trigger the upkeep
+    bp.process_batch(
+        bp.prepare_stream(pathling_fixture.spark.createDataFrame([data])), 1
+    )
+
+    dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
+    merge_commit = dt.history(1).first()
+    assert merge_commit is not None
+    assert merge_commit["operation"] == "MERGE"
+    merge_version = merge_commit["version"]
+
+    # e.g. auto compaction or the lakehousekeeper committing after the MERGE
+    dt.optimize().executeCompaction()
+    latest_commit = dt.history(1).first()
+    assert latest_commit is not None
+    assert latest_commit["operation"] == "OPTIMIZE"
+
+    recorded = []
+
+    class FakeCounter:
+        def add(self, value, attributes):
+            recorded.append((value, attributes))
+
+    monkeypatch.setattr(bundle_processor, "delta_merge_rows_counter", FakeCounter())
+
+    bp._record_merge_history_metrics(dt, "Patient", merge_version - 1)
+    assert recorded == [(0, {"resource_type": "Patient", "action": "copied"})]
+
+    # no MERGE committed after the given version
+    recorded.clear()
+    bp._record_merge_history_metrics(dt, "Patient", merge_version)
+    assert recorded == []
