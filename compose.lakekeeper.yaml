@@ -35,8 +35,12 @@ services:
     restart: "no"
     environment:
       LAKEKEEPER__PG_ENCRYPTION_KEY: "lakekeeper-dev-encryption-key"
-      LAKEKEEPER__PG_DATABASE_URL_READ: "postgresql://lakekeeper:lakekeeper@lakekeeper-db:5432/lakekeeper"
-      LAKEKEEPER__PG_DATABASE_URL_WRITE: "postgresql://lakekeeper:lakekeeper@lakekeeper-db:5432/lakekeeper"
+      LAKEKEEPER__PG_HOST_R: "lakekeeper-db"
+      LAKEKEEPER__PG_HOST_W: "lakekeeper-db"
+      LAKEKEEPER__PG_PORT: "5432"
+      LAKEKEEPER__PG_USER: "lakekeeper"
+      LAKEKEEPER__PG_PASSWORD: "lakekeeper"
+      LAKEKEEPER__PG_DATABASE: "lakekeeper"
     command: ["migrate"]
     depends_on:
       lakekeeper-db:
@@ -53,8 +57,12 @@ services:
     restart: unless-stopped
     environment:
       LAKEKEEPER__PG_ENCRYPTION_KEY: "lakekeeper-dev-encryption-key"
-      LAKEKEEPER__PG_DATABASE_URL_READ: "postgresql://lakekeeper:lakekeeper@lakekeeper-db:5432/lakekeeper"
-      LAKEKEEPER__PG_DATABASE_URL_WRITE: "postgresql://lakekeeper:lakekeeper@lakekeeper-db:5432/lakekeeper"
+      LAKEKEEPER__PG_HOST_R: "lakekeeper-db"
+      LAKEKEEPER__PG_HOST_W: "lakekeeper-db"
+      LAKEKEEPER__PG_PORT: "5432"
+      LAKEKEEPER__PG_USER: "lakekeeper"
+      LAKEKEEPER__PG_PASSWORD: "lakekeeper"
+      LAKEKEEPER__PG_DATABASE: "lakekeeper"
     command: ["serve"]
     healthcheck:
       test: ["CMD", "/home/nonroot/lakekeeper", "healthcheck"]

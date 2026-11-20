@@ -147,12 +147,12 @@ storage memory, and shuffle metrics, so Spark's own UI port doesn't need to be s
 
 | Metric                                                                                   | Description                                                                               |
 | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `resources_processed_total`                                                              | resources written or deleted, by resource type                                            |
+| `resources_processed_total`                                                              | resources written or deleted, by resource type and table format                           |
 | `delta_merge_rows_total`                                                                 | rows inserted, updated, deleted, or copied unchanged by Delta MERGE, as reported by Delta |
 | `delta_merge_phase_duration_seconds`                                                     | duration of the `materialize_source`, `scan`, and `rewrite` phases of each Delta MERGE    |
 | `delta_merge_files_total`, `delta_merge_bytes_total`                                     | files and bytes added and removed by Delta MERGE                                          |
 | `delta_table_size_bytes`, `delta_table_files`                                            | size and number of files of each Delta table                                              |
-| `delta_operation_duration_seconds`                                                       | duration of Delta operations (merge, optimize, vacuum, register)                          |
+| `table_operation_duration_seconds`                                                       | duration of Delta/Iceberg operations (merge, delete, optimize, vacuum, register)          |
 | `spark_streaming_query_input_rows_total`                                                 | Kafka records read by streaming query                                                     |
 | `spark_streaming_query_batch_duration_seconds`                                           | duration of non-empty micro-batches by streaming query                                    |
 | `spark_streaming_query_trigger_phase_duration_seconds`                                   | duration of each phase of the latest trigger, e.g. `addBatch`                             |
