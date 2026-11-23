@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.17.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.16.0...v1.17.0) (2026-11-23)
+
+
+### Features
+
+* cluster tables by the Kafka batch timestamp to reduce MERGE rewrites ([#223](https://github.com/bzkf/fhir-to-lakehouse/issues/223)) ([ea6a3a4](https://github.com/bzkf/fhir-to-lakehouse/commit/ea6a3a409729b8a45aa580bd9292efd1d5a4c5e0))
+
+
+### Build
+
+* **deps:** bump certifi from 2026.2.25 to 2026.10.18 ([#225](https://github.com/bzkf/fhir-to-lakehouse/issues/225)) ([d475cc3](https://github.com/bzkf/fhir-to-lakehouse/commit/d475cc34b71b8d243dd74a093deeb0d7e42f430e))
+
 ## [1.16.0](https://github.com/bzkf/fhir-to-lakehouse/compare/v1.15.0...v1.16.0) (2026-10-30)
 
 
