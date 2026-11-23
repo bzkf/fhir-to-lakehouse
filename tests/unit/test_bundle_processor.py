@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 from pathlib import Path
 
@@ -8,8 +9,10 @@ from pathling import PathlingContext
 from pyspark.sql import SparkSession
 from pyspark.sql.types import BinaryType, StructField, StructType
 
+import bundle_processor
 from bundle_processor import BundleProcessor
 from settings import (
+    KAFKA_BATCH_TIMESTAMP_COLUMN,
     DeltaSettings,
     KafkaSettings,
     KafkaSslSettings,
@@ -22,7 +25,9 @@ from testcontainers.core.container import DockerContainer
 HERE = Path(os.path.abspath(os.path.dirname(__file__)))
 
 seaweedfs = (
-    DockerContainer("docker.io/chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8")
+    DockerContainer(
+        "docker.io/chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8"
+    )
     .with_command("mini -dir=/data")
     .with_exposed_ports(8333)
     .with_env("AWS_ACCESS_KEY_ID", "admin")
@@ -60,7 +65,7 @@ def pathling_fixture(setup_s3):
         )
         .config(
             "spark.hadoop.fs.s3a.endpoint",
-            f"localhost:{seaweedfs.get_exposed_port(8333)}"
+            f"localhost:{seaweedfs.get_exposed_port(8333)}",
         )
         .config("fs.s3a.committer.name", "magic")
         .config("fs.s3a.committer.magic.enabled", "true")
@@ -366,3 +371,186 @@ def test_batch_with_put_and_delete_should_only_retain_latest(
     assert dt.toDF().where("id = 2 and active = false").count() == 1, (
         "Expected patient 2 to have active=false after the latest PUT request"
     )
+
+
+def _put_and_delete_message(
+    fixture: str, partition: int, offset: int, timestamp: datetime.datetime
+):
+    return {
+        "key": fixture,
+        "value": (
+            HERE / f"fixtures/resources/batches/put-and-delete/{fixture}.json"
+        ).read_text(),
+        "timestamp": timestamp,
+        "partition": partition,
+        "offset": offset,
+    }
+
+
+def _kafka_batch_timestamps_by_id(dt: DeltaTable) -> dict[str, datetime.datetime]:
+    return {
+        row["id"]: row[KAFKA_BATCH_TIMESTAMP_COLUMN]
+        for row in dt.toDF().select("id", KAFKA_BATCH_TIMESTAMP_COLUMN).collect()
+    }
+
+
+def test_kafka_batch_timestamp_is_stored_and_used_for_clustering(
+    pathling_fixture, tmp_path
+):
+    first_batch_time = datetime.datetime(2026, 1, 1, 12, 0)
+    second_batch_time = datetime.datetime(2026, 1, 1, 13, 0)
+
+    d = tmp_path / "warehouse" / "data"
+    settings = Settings(
+        delta_database_dir=d.as_posix(),
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+    )
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+
+    first_batch = pathling_fixture.spark.createDataFrame(
+        [
+            _put_and_delete_message(
+                "put-0", 0, 0, first_batch_time - datetime.timedelta(minutes=1)
+            ),
+            _put_and_delete_message("put-1", 1, 0, first_batch_time),
+        ]
+    )
+    bp.process_batch(bp.prepare_stream(first_batch), 1)
+
+    second_batch = pathling_fixture.spark.createDataFrame(
+        [
+            _put_and_delete_message("put-1", 1, 1, second_batch_time),
+            _put_and_delete_message("put-2", 0, 1, second_batch_time),
+        ]
+    )
+    bp.process_batch(bp.prepare_stream(second_batch), 2)
+
+    dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
+
+    # all rows written by a batch get its latest Kafka timestamp, and updated rows
+    # get the timestamp of the batch that updated them
+    assert _kafka_batch_timestamps_by_id(dt) == {
+        "0": first_batch_time,
+        "1": second_batch_time,
+        "2": second_batch_time,
+    }
+
+    # the first column, so Delta collects the statistics clustering requires
+    assert dt.toDF().columns[0] == KAFKA_BATCH_TIMESTAMP_COLUMN
+
+    details = dt.detail().first()
+    assert details is not None
+    assert details["clusteringColumns"] == [KAFKA_BATCH_TIMESTAMP_COLUMN]
+
+
+def test_existing_table_should_get_kafka_batch_timestamp_column(
+    pathling_fixture, tmp_path
+):
+    d = tmp_path / "warehouse" / "data"
+    table_path = (d / "Patient.parquet").as_posix()
+
+    # a table as created by earlier versions, without the column and clustering
+    put_bundle = json.loads(
+        (HERE / "fixtures/resources/batches/put-and-delete/put-0.json").read_text()
+    )
+    resource = json.dumps(put_bundle["entry"][0]["resource"])
+    pathling_fixture.encode(
+        pathling_fixture.spark.createDataFrame([{"resource": resource}]),
+        "Patient",
+        column="resource",
+    ).write.format("delta").save(table_path)
+
+    batch_time = datetime.datetime(2026, 1, 1, 12, 0)
+    batch = pathling_fixture.spark.createDataFrame(
+        [_put_and_delete_message("put-1", 0, 0, batch_time)]
+    )
+
+    settings = Settings(
+        delta_database_dir=d.as_posix(),
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+    )
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+    bp.process_batch(bp.prepare_stream(batch), 1)
+
+    dt = DeltaTable.forPath(pathling_fixture.spark, table_path)
+
+    assert dt.toDF().columns[0] == KAFKA_BATCH_TIMESTAMP_COLUMN
+    # rows written before the column existed don't have a value
+    assert _kafka_batch_timestamps_by_id(dt) == {"0": None, "1": batch_time}
+
+    details = dt.detail().first()
+    assert details is not None
+    assert details["clusteringColumns"] == [], (
+        "Existing tables should only be clustered if explicitly enabled"
+    )
+
+    settings = Settings(
+        delta_database_dir=d.as_posix(),
+        spark=SparkSettings(),
+        delta=DeltaSettings(apply_clustering_to_existing_tables=True),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+    )
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+    bp.process_batch(bp.prepare_stream(batch), 2)
+
+    details = dt.detail().first()
+    assert details is not None
+    assert details["clusteringColumns"] == [KAFKA_BATCH_TIMESTAMP_COLUMN]
+
+
+def test_merge_metrics_should_be_found_after_later_commits(
+    pathling_fixture, tmp_path, monkeypatch
+):
+    put_bundle = (HERE / "fixtures/resources/single-patient.json").read_text()
+    data = {
+        "key": "key",
+        "value": put_bundle,
+        "timestamp": datetime.datetime.now(),
+        "partition": 0,
+        "offset": 0,
+    }
+
+    d = tmp_path / "warehouse" / "data"
+    settings = Settings(
+        delta_database_dir=d.as_posix(),
+        spark=SparkSettings(),
+        delta=DeltaSettings(),
+        kafka=KafkaSettings(ssl=KafkaSslSettings()),
+    )
+    bp = BundleProcessor(pathling_fixture, settings=settings)
+    # a batch_id that doesn't trigger the upkeep
+    bp.process_batch(
+        bp.prepare_stream(pathling_fixture.spark.createDataFrame([data])), 1
+    )
+
+    dt = DeltaTable.forPath(pathling_fixture.spark, (d / "Patient.parquet").as_posix())
+    merge_commit = dt.history(1).first()
+    assert merge_commit is not None
+    assert merge_commit["operation"] == "MERGE"
+    merge_version = merge_commit["version"]
+
+    # e.g. auto compaction or the lakehousekeeper committing after the MERGE
+    dt.optimize().executeCompaction()
+    latest_commit = dt.history(1).first()
+    assert latest_commit is not None
+    assert latest_commit["operation"] == "OPTIMIZE"
+
+    recorded = []
+
+    class FakeCounter:
+        def add(self, value, attributes):
+            recorded.append((value, attributes))
+
+    monkeypatch.setattr(bundle_processor, "delta_merge_rows_counter", FakeCounter())
+
+    bp._record_merge_history_metrics(dt, "Patient", merge_version - 1)
+    assert recorded == [(0, {"resource_type": "Patient", "action": "copied"})]
+
+    # no MERGE committed after the given version
+    recorded.clear()
+    bp._record_merge_history_metrics(dt, "Patient", merge_version)
+    assert recorded == []

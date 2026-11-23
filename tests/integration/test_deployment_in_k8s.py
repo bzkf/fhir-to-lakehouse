@@ -16,12 +16,12 @@ def test_deploy_to_k8s_should_create_delta_tables():
     )
 
     bundle = (
-            Path(HERE)
-            / ".."
-            / "unit"
-            / "fixtures"
-            / "resources"
-            / "put-100-patients.ndjson"
+        Path(HERE)
+        / ".."
+        / "unit"
+        / "fixtures"
+        / "resources"
+        / "put-100-patients.ndjson"
     ).read_text()
 
     for line in bundle.splitlines():
